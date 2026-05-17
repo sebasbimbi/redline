@@ -17,6 +17,8 @@ export class AnnotationCanvas {
   draft: Annotation | null = null;
   /** The selected annotation's id; drawn with a selection box if set. */
   selectedId: string | null = null;
+  /** When true the canvas paints nothing (used during full-page capture). */
+  suppressed = false;
 
   private readonly ctx: CanvasRenderingContext2D;
   private rafId = 0;
@@ -65,6 +67,7 @@ export class AnnotationCanvas {
   render(): void {
     const { ctx } = this;
     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    if (this.suppressed) return;
     const sx = window.scrollX;
     const sy = window.scrollY;
     for (const annotation of this.doc.annotations) {

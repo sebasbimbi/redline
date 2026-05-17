@@ -44,6 +44,7 @@ import { COLORS, STROKE_WIDTHS } from '../platform/constants';
 import { loadSettings } from '../platform/settings';
 import type { RedlineSettings } from '../platform/settings';
 import { captureViewport } from '../capture/captureViewport';
+import { captureFullPage } from '../capture/fullPage';
 import { buildMarkdown } from '../export/markdown';
 import { exportSlug } from '../export/filename';
 import { copyToClipboard, dataUrlToBlob } from '../export/clipboard';
@@ -102,6 +103,7 @@ export class OverlayController {
   private readonly panel: SidePanel;
   private mounted = false;
   private busy = false;
+  private fullPageMode = false;
   private selectedId: string | null = null;
 
   constructor(private readonly opts: OverlayControllerOptions) {
@@ -163,6 +165,7 @@ export class OverlayController {
       onRedo: () => this.doRedo(),
       onClear: () => this.doClear(),
       onTogglePanel: () => this.togglePanel(),
+      onToggleFullPage: () => this.toggleFullPage(),
       onCopy: () => void this.runCopy(),
       onSave: () => void this.runSave(false),
       onSaveAs: () => void this.runSave(true),
@@ -366,6 +369,16 @@ export class OverlayController {
     this.panel.setOpen(open);
     this.toolbar.setPanelActive(open);
     if (open) this.panel.render(this.doc, this.selectedId);
+  }
+
+  private toggleFullPage(): void {
+    this.fullPageMode = !this.fullPageMode;
+    this.toolbar.setFullPageActive(this.fullPageMode);
+    this.toast.show(
+      this.fullPageMode
+        ? 'Full-page capture on. Copy and Save will scroll and stitch the page.'
+        : 'Full-page capture off. Copy and Save use the visible area.',
+    );
   }
 
   /** Select an annotation from the panel: switch to select mode and reveal it. */
@@ -637,30 +650,18 @@ export class OverlayController {
   }
 
   /**
-   * Hide Redline's own chrome, screenshot the page, and build the export
-   * artifacts. Returns null on failure (a toast is shown).
+   * Build the export artifacts: a PNG (viewport or full-page) plus the
+   * markdown changelog. Returns null on failure (a toast is shown).
    */
   private async capture(): Promise<ExportArtifacts | null> {
-    const previousSelection = this.canvas.selectedId;
     try {
-      // the annotation canvas is captured inline; keep the selection box and
-      // the Shadow DOM UI out of the screenshot
-      this.canvas.selectedId = null;
-      this.shadowHost.host.style.visibility = 'hidden';
-      this.canvas.render();
-      await nextFrame();
-      let dataUrl: string;
-      try {
-        dataUrl = await captureViewport();
-      } finally {
-        this.shadowHost.host.style.visibility = '';
-        this.canvas.selectedId = previousSelection;
-        this.canvas.render();
-      }
+      const pngBlob = this.fullPageMode
+        ? await this.captureFullPageBlob()
+        : await this.captureViewportBlob();
       this.doc.updatedAt = new Date().toISOString();
       const slug = exportSlug(this.doc.pageUrl);
       return {
-        pngBlob: dataUrlToBlob(dataUrl),
+        pngBlob,
         markdown: buildMarkdown(this.doc, `${slug}.png`),
         slug,
       };
@@ -669,6 +670,57 @@ export class OverlayController {
         tone: 'error',
       });
       return null;
+    }
+  }
+
+  /** Screenshot just the visible viewport, annotations included. */
+  private async captureViewportBlob(): Promise<Blob> {
+    const previousSelection = this.canvas.selectedId;
+    this.canvas.selectedId = null;
+    this.shadowHost.host.style.visibility = 'hidden';
+    this.canvas.render();
+    await nextFrame();
+    try {
+      return dataUrlToBlob(await captureViewport());
+    } finally {
+      this.shadowHost.host.style.visibility = '';
+      this.canvas.selectedId = previousSelection;
+      this.canvas.render();
+    }
+  }
+
+  /** Scroll-and-stitch the whole page into one tall annotated screenshot. */
+  private async captureFullPageBlob(): Promise<Blob> {
+    const previousSelection = this.canvas.selectedId;
+    this.canvas.selectedId = null;
+    // suppress the canvas (transparent, but it still blocks page clicks); the
+    // annotations are composited onto the stitched image afterward
+    this.canvas.suppressed = true;
+    this.shadowHost.host.style.visibility = 'hidden';
+    this.canvas.render();
+    const progress = this.toast.beginProgress('Full-page capture in progress.');
+    try {
+      const result = await captureFullPage({
+        doc: this.doc,
+        captureViewport,
+        ownElements: [this.canvas.el, this.shadowHost.host],
+        shouldContinue: () => this.mounted,
+        onProgress: (done, total) =>
+          progress.update(`Full-page capture: slice ${done} of ${total}`),
+      });
+      if (result.truncated) {
+        this.toast.show(
+          'The page is very long. Redline captured the top portion of it.',
+          { tone: 'error' },
+        );
+      }
+      return result.blob;
+    } finally {
+      progress.close();
+      this.shadowHost.host.style.visibility = '';
+      this.canvas.suppressed = false;
+      this.canvas.selectedId = previousSelection;
+      this.canvas.render();
     }
   }
 }

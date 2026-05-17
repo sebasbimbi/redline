@@ -25,6 +25,7 @@ export interface ToolbarOptions {
   onRedo: () => void;
   onClear: () => void;
   onTogglePanel: () => void;
+  onToggleFullPage: () => void;
   onCopy: () => void;
   onSave: () => void;
   onSaveAs: () => void;
@@ -41,6 +42,7 @@ export class Toolbar {
   private readonly undoBtn: HTMLButtonElement;
   private readonly redoBtn: HTMLButtonElement;
   private readonly panelBtn: HTMLButtonElement;
+  private readonly fullPageBtn: HTMLButtonElement;
   private readonly copyBtn: HTMLButtonElement;
   private readonly saveBtn: HTMLButtonElement;
   private readonly saveAsBtn: HTMLButtonElement;
@@ -130,6 +132,14 @@ export class Toolbar {
     historyGroup.append(this.undoBtn, this.redoBtn, clearBtn, this.panelBtn);
 
     // Export.
+    this.fullPageBtn = iconButton(
+      ICONS.fullpage,
+      'Full-page capture: scroll and stitch the whole page',
+    );
+    this.fullPageBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      opts.onToggleFullPage();
+    });
     this.copyBtn = textButton(
       'Copy',
       'redline-btn',
@@ -181,6 +191,7 @@ export class Toolbar {
       divider(),
       historyGroup,
       divider(),
+      this.fullPageBtn,
       this.copyBtn,
       saveGroup,
       closeBtn,
@@ -219,6 +230,11 @@ export class Toolbar {
   /** Reflect whether the annotation panel is open. */
   setPanelActive(active: boolean): void {
     this.panelBtn.classList.toggle('is-active', active);
+  }
+
+  /** Reflect whether full-page capture mode is on. */
+  setFullPageActive(active: boolean): void {
+    this.fullPageBtn.classList.toggle('is-active', active);
   }
 
   /** Disable the export buttons while a copy or save is in progress. */

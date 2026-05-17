@@ -51,6 +51,8 @@ In `chrome://extensions` (or `arc://extensions`):
    - **Save** writes `{date}_{site}_redline.png` and `.md` into a folder you
      pick, and remembers it per site. The small caret next to Save chooses a
      different folder.
+   - The full-page button switches Copy and Save between the visible area and
+     a stitched screenshot of the whole scrolling page.
 7. Press Esc to close Redline.
 
 ## The /redline Claude Code loop
@@ -82,11 +84,11 @@ pnpm compile    # type-check only
 
 ## Status
 
-Phase 4. Working: all seven annotation tools (callout, text, rectangle,
+Phase 5. Working: all seven annotation tools (callout, text, rectangle,
 ellipse, arrow, freehand, highlight), select and move, undo and redo, an
-annotation panel, per-page session persistence, popup settings, selector and
-metadata capture, viewport screenshot, clipboard and folder-save export, the
-`/redline` command. Planned: full-page capture and release polish.
+annotation panel, per-page session persistence, popup settings, viewport and
+full-page capture, selector and metadata capture, clipboard and folder-save
+export, the `/redline` command. Planned: release hardening and packaging.
 
 ## License
 
