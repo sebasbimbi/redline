@@ -64,6 +64,20 @@ export const UI_CSS = `
 .redline-btn-primary:hover { background: #2aa1ff; }
 .redline-btn-icon { padding: 7px 9px; font-size: 12px; }
 
+.redline-save-group { display: inline-flex; }
+.redline-split-main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.redline-split-more {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: 1px;
+  padding-left: 8px;
+  padding-right: 8px;
+  font-size: 10px;
+}
+
 .redline-dot {
   width: 11px;
   height: 11px;

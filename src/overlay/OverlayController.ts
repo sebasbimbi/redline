@@ -16,10 +16,18 @@ import { captureViewport } from '../capture/captureViewport';
 import { buildMarkdown } from '../export/markdown';
 import { exportSlug } from '../export/filename';
 import { copyToClipboard, dataUrlToBlob } from '../export/clipboard';
+import { resolveExportDirectory, writeExportFiles } from '../export/fileSystem';
+import { supportsFileSystemAccess } from '../platform/capabilities';
 
 export interface OverlayControllerOptions {
   /** Called whenever the overlay closes, for any reason. */
   onClosed: () => void;
+}
+
+interface ExportArtifacts {
+  pngBlob: Blob;
+  markdown: string;
+  slug: string;
 }
 
 /** The lifetime-scoped controller for one mounted overlay session. */
@@ -34,7 +42,7 @@ export class OverlayController {
   private readonly engine: DrawingEngine;
   private readonly toolbar: Toolbar;
   private mounted = false;
-  private exporting = false;
+  private busy = false;
 
   constructor(private readonly opts: OverlayControllerOptions) {
     this.picker = new ElementPicker(
@@ -51,7 +59,9 @@ export class OverlayController {
     this.engine = new DrawingEngine(this.canvas.el, this.registry, toolContext);
 
     this.toolbar = new Toolbar({
-      onExport: () => void this.runExport(),
+      onCopy: () => void this.runCopy(),
+      onSave: () => void this.runSave(false),
+      onSaveAs: () => void this.runSave(true),
       onClose: () => this.unmount(),
     });
   }
@@ -82,7 +92,7 @@ export class OverlayController {
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     // Escape closes the overlay — unless the label editor has it (it handles
-    // its own Escape and stops propagation, but this guard covers ordering).
+    // its own Escape and stops propagation; this guard covers event ordering).
     if (e.key === 'Escape' && !this.labelEditor.isOpen) {
       e.preventDefault();
       this.unmount();
@@ -124,36 +134,28 @@ export class OverlayController {
     }
   }
 
-  /** Capture the page and copy the screenshot + changelog to the clipboard. */
-  private async runExport(): Promise<void> {
-    if (this.exporting) return;
-    const changeCount = this.doc.annotations.filter(isChangeRequest).length;
-    if (changeCount === 0) {
+  private hasCallouts(): boolean {
+    return this.doc.annotations.some(isChangeRequest);
+  }
+
+  /** Copy the screenshot + changelog to the clipboard. */
+  private async runCopy(): Promise<void> {
+    if (this.busy) return;
+    if (!this.hasCallouts()) {
       this.toast.show('Add at least one callout before exporting.', {
         tone: 'error',
       });
       return;
     }
-
-    this.exporting = true;
-    this.toolbar.setExporting(true);
+    this.busy = true;
+    this.toolbar.setBusy(true);
     try {
-      // hide our UI so it stays out of the screenshot; the canvas stays visible
-      this.shadowHost.host.style.visibility = 'hidden';
-      await nextFrame();
-      let dataUrl: string;
-      try {
-        dataUrl = await captureViewport();
-      } finally {
-        this.shadowHost.host.style.visibility = '';
-      }
-
-      const slug = exportSlug(this.doc.pageUrl);
-      this.doc.updatedAt = new Date().toISOString();
-      const markdown = buildMarkdown(this.doc, `${slug}.png`);
-      const pngBlob = dataUrlToBlob(dataUrl);
-
-      const result = await copyToClipboard(pngBlob, markdown);
+      const artifacts = await this.capture();
+      if (!artifacts) return;
+      const result = await copyToClipboard(
+        artifacts.pngBlob,
+        artifacts.markdown,
+      );
       if (!result.ok) {
         this.toast.show(result.error ?? 'Could not copy to the clipboard.', {
           tone: 'error',
@@ -167,13 +169,92 @@ export class OverlayController {
           'Copied the screenshot. This browser would not copy text alongside it.',
         );
       }
+    } finally {
+      this.busy = false;
+      this.toolbar.setBusy(false);
+    }
+  }
+
+  /**
+   * Save the screenshot + changelog into a project folder. With `forcePicker`,
+   * always prompt for the folder instead of reusing the last one.
+   */
+  private async runSave(forcePicker: boolean): Promise<void> {
+    if (this.busy) return;
+    if (!supportsFileSystemAccess()) {
+      this.toast.show(
+        'Saving to a folder needs a secure (https) page. Use Copy here instead.',
+        { tone: 'error' },
+      );
+      return;
+    }
+    if (!this.hasCallouts()) {
+      this.toast.show('Add at least one callout before exporting.', {
+        tone: 'error',
+      });
+      return;
+    }
+    this.busy = true;
+    this.toolbar.setBusy(true);
+    try {
+      // Resolve the folder first, while the click's user activation is fresh.
+      const directory = await resolveExportDirectory(forcePicker);
+      if (directory.status === 'cancelled') return;
+      if (directory.status === 'error') {
+        this.toast.show(directory.message, { tone: 'error' });
+        return;
+      }
+      const artifacts = await this.capture();
+      if (!artifacts) return;
+      const result = await writeExportFiles(
+        directory.dir,
+        artifacts.pngBlob,
+        artifacts.markdown,
+        artifacts.slug,
+      );
+      if (!result.ok) {
+        this.toast.show(result.error ?? 'Could not save the files.', {
+          tone: 'error',
+        });
+      } else {
+        this.toast.show(
+          `Saved ${artifacts.slug}.png and .md to ${directory.dir.name}/. ` +
+            'Run /redline in Claude Code.',
+        );
+      }
+    } finally {
+      this.busy = false;
+      this.toolbar.setBusy(false);
+    }
+  }
+
+  /**
+   * Hide the UI, screenshot the page, and build the export artifacts.
+   * Returns null on failure (a toast is shown). The caller owns `busy`.
+   */
+  private async capture(): Promise<ExportArtifacts | null> {
+    try {
+      // hide our UI so it stays out of the screenshot; the canvas stays visible
+      this.shadowHost.host.style.visibility = 'hidden';
+      await nextFrame();
+      let dataUrl: string;
+      try {
+        dataUrl = await captureViewport();
+      } finally {
+        this.shadowHost.host.style.visibility = '';
+      }
+      this.doc.updatedAt = new Date().toISOString();
+      const slug = exportSlug(this.doc.pageUrl);
+      return {
+        pngBlob: dataUrlToBlob(dataUrl),
+        markdown: buildMarkdown(this.doc, `${slug}.png`),
+        slug,
+      };
     } catch (err) {
       this.toast.show(err instanceof Error ? err.message : 'Export failed.', {
         tone: 'error',
       });
-    } finally {
-      this.exporting = false;
-      this.toolbar.setExporting(false);
+      return null;
     }
   }
 }

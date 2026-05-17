@@ -1,13 +1,17 @@
-/** The floating Redline toolbar. Phase 1: callout tool, export, close. */
+/** The floating Redline toolbar. Phase 2: callout tool, copy, save, close. */
 
 export interface ToolbarOptions {
-  onExport: () => void;
+  onCopy: () => void;
+  onSave: () => void;
+  onSaveAs: () => void;
   onClose: () => void;
 }
 
 export class Toolbar {
   readonly el: HTMLElement;
-  private readonly exportBtn: HTMLButtonElement;
+  private readonly copyBtn: HTMLButtonElement;
+  private readonly saveBtn: HTMLButtonElement;
+  private readonly saveAsBtn: HTMLButtonElement;
 
   constructor(opts: ToolbarOptions) {
     this.el = document.createElement('div');
@@ -28,31 +32,76 @@ export class Toolbar {
     dot.className = 'redline-dot';
     calloutBtn.append(dot, document.createTextNode('Callout'));
 
-    this.exportBtn = document.createElement('button');
-    this.exportBtn.type = 'button';
-    this.exportBtn.className = 'redline-btn redline-btn-primary';
-    this.exportBtn.textContent = 'Export';
-    this.exportBtn.addEventListener('click', (e) => {
+    this.copyBtn = makeButton(
+      'Copy',
+      'redline-btn',
+      'Copy the screenshot and changelog to the clipboard',
+    );
+    this.copyBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      opts.onExport();
+      opts.onCopy();
     });
 
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'redline-btn redline-btn-icon';
-    closeBtn.textContent = '✕'; // multiplication x
-    closeBtn.title = 'Close Redline (Esc)';
+    // Save is a split button: "Save" plus a caret to pick a different folder.
+    this.saveBtn = makeButton(
+      'Save',
+      'redline-btn redline-btn-primary redline-split-main',
+      'Save the export into your project folder',
+    );
+    this.saveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      opts.onSave();
+    });
+    this.saveAsBtn = makeButton(
+      '▾',
+      'redline-btn redline-btn-primary redline-split-more',
+      'Save to a different folder',
+    );
+    this.saveAsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      opts.onSaveAs();
+    });
+    const saveGroup = document.createElement('span');
+    saveGroup.className = 'redline-save-group';
+    saveGroup.append(this.saveBtn, this.saveAsBtn);
+
+    const closeBtn = makeButton(
+      '✕',
+      'redline-btn redline-btn-icon',
+      'Close Redline (Esc)',
+    );
     closeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       opts.onClose();
     });
 
-    this.el.append(wordmark, divider, calloutBtn, this.exportBtn, closeBtn);
+    this.el.append(
+      wordmark,
+      divider,
+      calloutBtn,
+      this.copyBtn,
+      saveGroup,
+      closeBtn,
+    );
   }
 
-  /** Reflect export progress on the Export button. */
-  setExporting(busy: boolean): void {
-    this.exportBtn.disabled = busy;
-    this.exportBtn.textContent = busy ? 'Exporting…' : 'Export';
+  /** Disable the export buttons while a copy or save is in progress. */
+  setBusy(busy: boolean): void {
+    this.copyBtn.disabled = busy;
+    this.saveBtn.disabled = busy;
+    this.saveAsBtn.disabled = busy;
   }
+}
+
+function makeButton(
+  label: string,
+  className: string,
+  title: string,
+): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = className;
+  button.textContent = label;
+  button.title = title;
+  return button;
 }
