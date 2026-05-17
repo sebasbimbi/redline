@@ -24,6 +24,7 @@ export interface ToolbarOptions {
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
+  onTogglePanel: () => void;
   onCopy: () => void;
   onSave: () => void;
   onSaveAs: () => void;
@@ -39,6 +40,7 @@ export class Toolbar {
   private readonly widthButtons = new Map<number, HTMLButtonElement>();
   private readonly undoBtn: HTMLButtonElement;
   private readonly redoBtn: HTMLButtonElement;
+  private readonly panelBtn: HTMLButtonElement;
   private readonly copyBtn: HTMLButtonElement;
   private readonly saveBtn: HTMLButtonElement;
   private readonly saveAsBtn: HTMLButtonElement;
@@ -103,7 +105,7 @@ export class Toolbar {
       widthGroup.appendChild(btn);
     });
 
-    // History.
+    // History and panel.
     this.undoBtn = iconButton(ICONS.undo, 'Undo (Cmd/Ctrl+Z)');
     this.undoBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -119,8 +121,13 @@ export class Toolbar {
       e.stopPropagation();
       opts.onClear();
     });
+    this.panelBtn = iconButton(ICONS.panel, 'Toggle the annotation panel');
+    this.panelBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      opts.onTogglePanel();
+    });
     const historyGroup = group();
-    historyGroup.append(this.undoBtn, this.redoBtn, clearBtn);
+    historyGroup.append(this.undoBtn, this.redoBtn, clearBtn, this.panelBtn);
 
     // Export.
     this.copyBtn = textButton(
@@ -207,6 +214,11 @@ export class Toolbar {
 
   setRedoEnabled(enabled: boolean): void {
     this.redoBtn.disabled = !enabled;
+  }
+
+  /** Reflect whether the annotation panel is open. */
+  setPanelActive(active: boolean): void {
+    this.panelBtn.classList.toggle('is-active', active);
   }
 
   /** Disable the export buttons while a copy or save is in progress. */

@@ -29,7 +29,8 @@ In `chrome://extensions` (or `arc://extensions`):
 1. Open a normal web page (http or https, not `chrome://` pages or the Web
    Store).
 2. Press Cmd+Shift+M (Mac) or Ctrl+Shift+M, or click the Redline icon and
-   choose Activate.
+   choose Activate. The icon's popup also sets your default color and stroke,
+   and links to the browser's shortcut settings.
 3. Pick a tool from the toolbar (or press its shortcut key):
    - **Callout** (C) drops a numbered marker on an element and opens a box for
      the change you want. **Text** (T) places an editable note. Both are
@@ -41,12 +42,16 @@ In `chrome://extensions` (or `arc://extensions`):
      remove it, double-click a callout or note to re-edit its label.
 4. Undo and redo with the toolbar arrows or Cmd/Ctrl+Z. Pick a color and
    stroke width from the toolbar; Clear removes everything.
-5. Export with the toolbar:
+5. The panel button on the toolbar opens a list of every annotation. Click a
+   row to jump to it, the pencil to edit a label, the cross to delete it.
+   Annotations are saved per page: reopen Redline on the same page and it
+   offers to resume them.
+6. Export with the toolbar:
    - **Copy** puts the screenshot and changelog on the clipboard.
    - **Save** writes `{date}_{site}_redline.png` and `.md` into a folder you
      pick, and remembers it per site. The small caret next to Save chooses a
      different folder.
-6. Press Esc to close Redline.
+7. Press Esc to close Redline.
 
 ## The /redline Claude Code loop
 
@@ -77,10 +82,11 @@ pnpm compile    # type-check only
 
 ## Status
 
-Phase 3. Working: all seven annotation tools (callout, text, rectangle,
-ellipse, arrow, freehand, highlight), select and move, undo and redo, selector
-and metadata capture, viewport screenshot, clipboard and folder-save export,
-the `/redline` command. Planned: full-page capture and cross-browser polish.
+Phase 4. Working: all seven annotation tools (callout, text, rectangle,
+ellipse, arrow, freehand, highlight), select and move, undo and redo, an
+annotation panel, per-page session persistence, popup settings, selector and
+metadata capture, viewport screenshot, clipboard and folder-save export, the
+`/redline` command. Planned: full-page capture and release polish.
 
 ## License
 

@@ -15,7 +15,6 @@ body {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
 .title {
@@ -28,7 +27,20 @@ body {
   font-size: 12px;
   line-height: 1.4;
   color: rgba(255, 255, 255, 0.5);
-  margin-bottom: 10px;
+  margin-top: 2px;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.popup-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin-top: 14px;
 }
 
 .activate {
@@ -52,11 +64,85 @@ body {
 .hint {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.4);
-  margin-top: 8px;
 }
 
 .msg {
   font-size: 12px;
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.7);
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.swatch-row {
+  display: flex;
+  gap: 8px;
+}
+.swatch {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  background: currentColor;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.swatch:hover {
+  transform: scale(1.1);
+}
+.swatch.is-active {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px #161618, 0 0 0 4px rgba(255, 255, 255, 0.3);
+}
+
+.width-row {
+  display: flex;
+  gap: 6px;
+}
+.width {
+  flex: 1;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 7px 0;
+  border-radius: 7px;
+  transition: background-color 0.12s ease;
+}
+.width:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.width.is-active {
+  background: #0091ff;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.link {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  cursor: pointer;
+  background: transparent;
+  color: #2aa1ff;
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+  padding: 2px 0;
+}
+.link:hover {
+  text-decoration: underline;
 }

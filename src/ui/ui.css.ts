@@ -192,6 +192,158 @@ export const UI_CSS = `
 .redline-label-editor textarea:focus { border-color: #0091ff; }
 .redline-label-editor textarea::placeholder { color: rgba(255, 255, 255, 0.38); }
 
+.redline-panel {
+  position: fixed;
+  top: 60px;
+  right: 12px;
+  bottom: 12px;
+  width: 264px;
+  display: none;
+  flex-direction: column;
+  background: rgba(22, 22, 24, 0.95);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 11px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.46);
+  pointer-events: auto;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #ffffff;
+  overflow: hidden;
+}
+.redline-panel.is-open { display: flex; }
+.redline-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  font-size: 13px;
+  font-weight: 600;
+}
+.redline-panel-count { color: rgba(255, 255, 255, 0.45); font-weight: 400; }
+.redline-panel-close {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: inherit;
+  font-size: 12px;
+}
+.redline-panel-close:hover { background: rgba(255, 255, 255, 0.14); color: #ffffff; }
+.redline-panel-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.redline-panel-empty {
+  padding: 22px 14px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.4);
+}
+.redline-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+}
+.redline-panel-row:hover { background: rgba(255, 255, 255, 0.11); }
+.redline-panel-row.is-selected {
+  background: rgba(0, 145, 255, 0.20);
+  outline: 1px solid rgba(0, 145, 255, 0.55);
+}
+.redline-panel-num {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.redline-panel-chip {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+}
+.redline-panel-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.redline-panel-label.is-muted { color: rgba(255, 255, 255, 0.5); }
+.redline-panel-act {
+  flex: none;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: inherit;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.redline-panel-act:hover { background: rgba(255, 255, 255, 0.16); color: #ffffff; }
+.redline-panel-act svg { display: block; }
+
+.redline-session-prompt {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 326px;
+  padding: 14px 16px;
+  background: rgba(22, 22, 24, 0.98);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #ffffff;
+}
+.redline-session-title { font-size: 13px; font-weight: 600; }
+.redline-session-text {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.6);
+}
+.redline-session-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+.redline-session-actions button { flex: 1; }
+
 .redline-toast-stack {
   position: fixed;
   bottom: 24px;

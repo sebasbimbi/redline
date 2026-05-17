@@ -37,6 +37,14 @@ export const ICONS = {
   clear: svg(
     '<path d="M3.2 4.7H12.8M6.4 4.7V3.2H9.6V4.7M4.7 4.7L5.4 13.4H10.6L11.3 4.7"/>',
   ),
+  panel: svg(
+    '<rect x="2.3" y="3" width="11.4" height="10" rx="1.4"/>' +
+      '<path d="M9.6 3.2V12.8"/>',
+  ),
+  pencil: svg(
+    '<path d="M10.8 2.7L13.3 5.2 5.7 12.8 2.5 13.5 3.2 10.3Z"/>' +
+      '<path d="M9.2 4.3L11.7 6.8"/>',
+  ),
 } as const;
 
 export type IconName = keyof typeof ICONS;

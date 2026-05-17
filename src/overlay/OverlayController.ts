@@ -7,12 +7,15 @@ import type {
   Geometry,
 } from '../model/annotation';
 import { isChangeRequest } from '../model/annotation';
-import { createDocument } from '../model/document';
+import type { RedlineDocument } from '../model/document';
+import { createDocument, resequence } from '../model/document';
 import { pageToClient } from '../model/geometry';
+import { annotationBounds } from '../model/geometryOps';
 import { AnnotationCanvas } from './AnnotationCanvas';
 import { ElementPicker } from './ElementPicker';
 import { DrawingEngine } from './DrawingEngine';
 import { UndoStack } from './UndoStack';
+import { SessionStore } from './SessionStore';
 import {
   AddAnnotationCommand,
   ClearAllCommand,
@@ -33,9 +36,13 @@ import { HighlightTool } from './tools/HighlightTool';
 import { ShadowHost } from '../ui/ShadowHost';
 import { Toolbar } from '../ui/Toolbar';
 import type { ToolDef } from '../ui/Toolbar';
+import { SidePanel } from '../ui/SidePanel';
+import { SessionPrompt } from '../ui/SessionPrompt';
 import { LabelEditor } from '../ui/LabelEditor';
 import { Toast } from '../ui/Toast';
 import { COLORS, STROKE_WIDTHS } from '../platform/constants';
+import { loadSettings } from '../platform/settings';
+import type { RedlineSettings } from '../platform/settings';
 import { captureViewport } from '../capture/captureViewport';
 import { buildMarkdown } from '../export/markdown';
 import { exportSlug } from '../export/filename';
@@ -85,11 +92,14 @@ export class OverlayController {
   private readonly shadowHost = new ShadowHost();
   private readonly toast = new Toast(this.shadowHost.root);
   private readonly labelEditor = new LabelEditor(this.shadowHost.root);
+  private readonly sessionPrompt = new SessionPrompt(this.shadowHost.root);
   private readonly registry = new ToolRegistry();
   private readonly undo = new UndoStack();
+  private readonly session = new SessionStore();
   private readonly picker: ElementPicker;
   private readonly engine: DrawingEngine;
   private readonly toolbar: Toolbar;
+  private readonly panel: SidePanel;
   private mounted = false;
   private busy = false;
   private selectedId: string | null = null;
@@ -126,6 +136,13 @@ export class OverlayController {
     };
     this.engine = new DrawingEngine(this.canvas.el, this.registry, toolContext);
 
+    this.panel = new SidePanel({
+      onSelect: (id) => this.panelSelect(id),
+      onEditLabel: (id) => this.editLabel(id),
+      onDelete: (id) => this.removeAnnotation(id),
+      onClose: () => this.togglePanel(),
+    });
+
     this.toolbar = new Toolbar({
       tools: TOOL_DEFS,
       colors: COLORS,
@@ -145,6 +162,7 @@ export class OverlayController {
       onUndo: () => this.doUndo(),
       onRedo: () => this.doRedo(),
       onClear: () => this.doClear(),
+      onTogglePanel: () => this.togglePanel(),
       onCopy: () => void this.runCopy(),
       onSave: () => void this.runSave(false),
       onSaveAs: () => void this.runSave(true),
@@ -159,21 +177,24 @@ export class OverlayController {
     this.canvas.mount(root);
     this.shadowHost.mount(root);
     this.shadowHost.root.appendChild(this.toolbar.el);
+    this.shadowHost.root.appendChild(this.panel.el);
     this.engine.attach();
     window.addEventListener('keydown', this.onKeyDown, true);
     this.updateCursor(this.doc.activeTool);
     this.toolbar.setUndoEnabled(false);
     this.toolbar.setRedoEnabled(false);
-    this.toast.show(
-      'Redline is on. Click to drop a callout, or pick another tool.',
-    );
+    // stay inert until the saved-session check resolves
+    this.engine.setEnabled(false);
+    void this.initFromStorage();
   }
 
   unmount(): void {
     if (!this.mounted) return;
     this.mounted = false;
+    this.session.flush(this.doc);
     window.removeEventListener('keydown', this.onKeyDown, true);
     this.labelEditor.close();
+    this.sessionPrompt.close();
     this.engine.detach();
     this.toast.destroy();
     this.canvas.unmount();
@@ -182,6 +203,14 @@ export class OverlayController {
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
+    // the session prompt is a modal choice; only Escape (= start fresh) passes
+    if (this.sessionPrompt.isOpen) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this.sessionPrompt.dismiss();
+      }
+      return;
+    }
     if (e.key === 'Escape') {
       // the label editor handles its own Escape and stops propagation
       if (this.labelEditor.isOpen) return;
@@ -223,6 +252,66 @@ export class OverlayController {
     }
   };
 
+  // --- session restore ----------------------------------------------------
+
+  /** Apply stored settings, then offer to resume any saved annotations. */
+  private async initFromStorage(): Promise<void> {
+    const settings = await loadSettings();
+    if (!this.mounted) return;
+    this.applySettings(settings);
+
+    const saved = await this.session.load();
+    if (!this.mounted) return;
+    if (saved && saved.annotations.length > 0) {
+      const count = saved.annotations.length;
+      this.sessionPrompt.open({
+        count,
+        onResume: () => {
+          this.adoptDocument(saved);
+          this.engine.setEnabled(true);
+          this.toast.show(
+            `Resumed ${count} saved annotation${count === 1 ? '' : 's'}.`,
+          );
+        },
+        onFresh: () => {
+          this.engine.setEnabled(true);
+          this.toast.show(
+            'Started fresh. Your saved annotations are untouched.',
+          );
+        },
+      });
+    } else {
+      this.engine.setEnabled(true);
+      this.toast.show(
+        'Redline is on. Click to drop a callout, or pick another tool.',
+      );
+    }
+  }
+
+  private applySettings(settings: RedlineSettings): void {
+    this.doc.activeColor = settings.defaultColor;
+    this.doc.activeStrokeWidth = settings.defaultStrokeWidth;
+    this.toolbar.setActiveColor(settings.defaultColor);
+    this.toolbar.setActiveWidth(settings.defaultStrokeWidth);
+  }
+
+  /** Replace this session's annotations with a saved document's. */
+  private adoptDocument(saved: RedlineDocument): void {
+    this.doc.annotations.splice(
+      0,
+      this.doc.annotations.length,
+      ...saved.annotations,
+    );
+    this.doc.activeColor = saved.activeColor;
+    this.doc.activeStrokeWidth = saved.activeStrokeWidth;
+    resequence(this.doc);
+    this.toolbar.setActiveColor(saved.activeColor);
+    this.toolbar.setActiveWidth(saved.activeStrokeWidth);
+    this.refreshHistory();
+    this.panel.render(this.doc, this.selectedId);
+    this.canvas.requestRender();
+  }
+
   // --- tool + state -------------------------------------------------------
 
   private activateTool(tool: EditorTool): void {
@@ -246,6 +335,7 @@ export class OverlayController {
   private setSelection(id: string | null): void {
     this.selectedId = id;
     this.canvas.selectedId = id;
+    this.panel.render(this.doc, id);
     this.canvas.requestRender();
   }
 
@@ -263,41 +353,75 @@ export class OverlayController {
     this.toolbar.setRedoEnabled(this.undo.canRedo());
   }
 
+  /** Refresh history buttons, the panel, persistence, and the canvas. */
+  private afterMutation(): void {
+    this.refreshHistory();
+    this.panel.render(this.doc, this.selectedId);
+    this.session.save(this.doc);
+    this.canvas.requestRender();
+  }
+
+  private togglePanel(): void {
+    const open = !this.panel.isOpen;
+    this.panel.setOpen(open);
+    this.toolbar.setPanelActive(open);
+    if (open) this.panel.render(this.doc, this.selectedId);
+  }
+
+  /** Select an annotation from the panel: switch to select mode and reveal it. */
+  private panelSelect(id: string): void {
+    this.activateTool('select');
+    this.setSelection(id);
+    const annotation = this.doc.annotations.find((a) => a.id === id);
+    if (annotation) this.scrollToAnnotation(annotation);
+  }
+
+  private scrollToAnnotation(annotation: Annotation): void {
+    const bounds = annotationBounds(annotation);
+    const centerY = bounds.y + bounds.h / 2;
+    const viewTop = window.scrollY;
+    const viewBottom = viewTop + window.innerHeight;
+    if (centerY < viewTop + 48 || centerY > viewBottom - 48) {
+      window.scrollTo({
+        top: Math.max(0, centerY - window.innerHeight / 2),
+        behavior: 'smooth',
+      });
+    }
+  }
+
   // --- undo-backed mutations ---------------------------------------------
 
   private addAnnotation(annotation: Annotation): void {
     this.undo.execute(new AddAnnotationCommand(this.doc, annotation));
-    this.refreshHistory();
-    this.canvas.requestRender();
+    this.afterMutation();
   }
 
   private recordMove(id: string, before: Geometry, after: Geometry): void {
     this.undo.execute(new MoveAnnotationCommand(this.doc, id, before, after));
-    this.refreshHistory();
-    this.canvas.requestRender();
+    this.afterMutation();
   }
 
   private removeAnnotation(id: string): void {
     this.undo.execute(new DeleteAnnotationCommand(this.doc, id));
-    if (this.selectedId === id) this.setSelection(null);
-    this.refreshHistory();
-    this.canvas.requestRender();
+    if (this.selectedId === id) {
+      this.selectedId = null;
+      this.canvas.selectedId = null;
+    }
+    this.afterMutation();
   }
 
   private doUndo(): void {
     if (!this.undo.undo()) return;
-    this.setDraft(null);
+    this.canvas.draft = null;
     this.syncSelectionToDoc();
-    this.refreshHistory();
-    this.canvas.requestRender();
+    this.afterMutation();
   }
 
   private doRedo(): void {
     if (!this.undo.redo()) return;
-    this.setDraft(null);
+    this.canvas.draft = null;
     this.syncSelectionToDoc();
-    this.refreshHistory();
-    this.canvas.requestRender();
+    this.afterMutation();
   }
 
   private doClear(): void {
@@ -306,10 +430,10 @@ export class OverlayController {
       return;
     }
     this.undo.execute(new ClearAllCommand(this.doc));
-    this.setDraft(null);
-    this.setSelection(null);
-    this.refreshHistory();
-    this.canvas.requestRender();
+    this.canvas.draft = null;
+    this.selectedId = null;
+    this.canvas.selectedId = null;
+    this.afterMutation();
     this.toast.show('Cleared all annotations.');
   }
 
@@ -383,11 +507,8 @@ export class OverlayController {
         if (label === '') {
           this.removeAnnotation(id);
         } else {
-          this.undo.execute(
-            new EditLabelCommand(this.doc, id, before, label),
-          );
-          this.refreshHistory();
-          this.canvas.requestRender();
+          this.undo.execute(new EditLabelCommand(this.doc, id, before, label));
+          this.afterMutation();
         }
       },
       onCancel: () => {
@@ -523,7 +644,7 @@ export class OverlayController {
     const previousSelection = this.canvas.selectedId;
     try {
       // the annotation canvas is captured inline; keep the selection box and
-      // the Shadow DOM toolbar out of the screenshot
+      // the Shadow DOM UI out of the screenshot
       this.canvas.selectedId = null;
       this.shadowHost.host.style.visibility = 'hidden';
       this.canvas.render();

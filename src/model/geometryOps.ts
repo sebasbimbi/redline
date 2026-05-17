@@ -167,3 +167,19 @@ export function hitTestTopmost(
   }
   return null;
 }
+
+/** The drawing color of an annotation, whatever its geometry. */
+export function annotationColor(annotation: Annotation): string {
+  const g = annotation.geometry;
+  switch (g.kind) {
+    case 'rectangle':
+    case 'ellipse':
+    case 'arrow':
+    case 'freehand':
+      return g.style.color;
+    case 'highlight':
+    case 'callout':
+    case 'text':
+      return g.color;
+  }
+}

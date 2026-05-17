@@ -14,6 +14,12 @@ export default defineConfig({
       'Annotate live webpages and export structured change requests to Claude Code.',
     permissions: ['activeTab', 'scripting', 'storage', 'tabs'],
     host_permissions: ['http://*/*', 'https://*/*'],
+    icons: {
+      16: 'icon/16.png',
+      32: 'icon/32.png',
+      48: 'icon/48.png',
+      128: 'icon/128.png',
+    },
     commands: {
       'toggle-redline': {
         suggested_key: {
