@@ -50,6 +50,7 @@ import { exportSlug } from '../export/filename';
 import { copyToClipboard, dataUrlToBlob } from '../export/clipboard';
 import { resolveExportDirectory, writeExportFiles } from '../export/fileSystem';
 import { supportsFileSystemAccess } from '../platform/capabilities';
+import { isExtensionContextValid } from '../platform/extensionContext';
 
 export interface OverlayControllerOptions {
   /** Called whenever the overlay closes, for any reason. */
@@ -105,6 +106,7 @@ export class OverlayController {
   private busy = false;
   private fullPageMode = false;
   private selectedId: string | null = null;
+  private contextTimer = 0;
 
   constructor(private readonly opts: OverlayControllerOptions) {
     this.picker = new ElementPicker(
@@ -188,12 +190,17 @@ export class OverlayController {
     this.toolbar.setRedoEnabled(false);
     // stay inert until the saved-session check resolves
     this.engine.setEnabled(false);
+    // detect the extension being reloaded out from under this overlay
+    this.contextTimer = window.setInterval(() => {
+      if (!isExtensionContextValid()) this.handleContextLoss();
+    }, 3000);
     void this.initFromStorage();
   }
 
   unmount(): void {
     if (!this.mounted) return;
     this.mounted = false;
+    window.clearInterval(this.contextTimer);
     this.session.flush(this.doc);
     window.removeEventListener('keydown', this.onKeyDown, true);
     this.labelEditor.close();
@@ -202,6 +209,31 @@ export class OverlayController {
     this.toast.destroy();
     this.canvas.unmount();
     this.shadowHost.unmount();
+    this.opts.onClosed();
+  }
+
+  /**
+   * The extension was reloaded or updated while the overlay was open, so its
+   * APIs are dead. Tear the overlay down without touching them.
+   */
+  private handleContextLoss(): void {
+    if (!this.mounted) return;
+    this.mounted = false;
+    window.clearInterval(this.contextTimer);
+    window.removeEventListener('keydown', this.onKeyDown, true);
+    this.labelEditor.close();
+    this.sessionPrompt.close();
+    this.engine.detach();
+    this.canvas.unmount();
+    // the extension APIs are dead, so the session cannot be flushed
+    this.toast.show(
+      'Redline was reloaded or updated. Refresh this page to use it again.',
+      { tone: 'error', durationMs: 6000 },
+    );
+    window.setTimeout(() => {
+      this.toast.destroy();
+      this.shadowHost.unmount();
+    }, 6500);
     this.opts.onClosed();
   }
 
@@ -666,6 +698,10 @@ export class OverlayController {
         slug,
       };
     } catch (err) {
+      if (!isExtensionContextValid()) {
+        this.handleContextLoss();
+        return null;
+      }
       this.toast.show(err instanceof Error ? err.message : 'Export failed.', {
         tone: 'error',
       });

@@ -23,10 +23,7 @@ export class ShadowHost {
       zIndex: String(Z_UI),
     });
     this.root = this.host.attachShadow({ mode: 'open' });
-
-    const style = document.createElement('style');
-    style.textContent = UI_CSS;
-    this.root.appendChild(style);
+    applyStyles(this.root);
   }
 
   mount(parent: Element): void {
@@ -35,5 +32,23 @@ export class ShadowHost {
 
   unmount(): void {
     this.host.remove();
+  }
+}
+
+/**
+ * Attach the UI styles. A constructed stylesheet is used so that a strict page
+ * Content-Security-Policy cannot block the styles the way it can block a
+ * `<style>` element; the `<style>` path is a fallback for engines without
+ * constructable stylesheets.
+ */
+function applyStyles(root: ShadowRoot): void {
+  try {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(UI_CSS);
+    root.adoptedStyleSheets = [sheet];
+  } catch {
+    const style = document.createElement('style');
+    style.textContent = UI_CSS;
+    root.appendChild(style);
   }
 }

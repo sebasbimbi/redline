@@ -80,15 +80,18 @@ Then, each time:
 pnpm dev        # WXT dev server with live reload
 pnpm build      # production build into output/chrome-mv3/
 pnpm compile    # type-check only
+pnpm zip        # packaged .zip for the Chrome Web Store
+pnpm icons      # regenerate the extension icons
 ```
 
 ## Status
 
-Phase 5. Working: all seven annotation tools (callout, text, rectangle,
-ellipse, arrow, freehand, highlight), select and move, undo and redo, an
-annotation panel, per-page session persistence, popup settings, viewport and
-full-page capture, selector and metadata capture, clipboard and folder-save
-export, the `/redline` command. Planned: release hardening and packaging.
+Version 1.0, feature complete. Seven annotation tools (callout, text,
+rectangle, ellipse, arrow, freehand, highlight), select and move, undo and
+redo, an annotation panel, per-page session persistence, popup settings,
+viewport and full-page capture, clipboard and folder-save export, and the
+`/redline` command. The overlay pierces open shadow DOM when picking elements
+and recovers cleanly if the extension is reloaded.
 
 ## License
 

@@ -9,9 +9,9 @@ export const MOUNTED_FLAG = '__REDLINE_MOUNTED__';
 /** Built path of the overlay content script, injected via the scripting API. */
 export const OVERLAY_SCRIPT = '/content-scripts/overlay.js';
 
-/** Stacking order for Redline layers (near the 32-bit signed integer max). */
-export const Z_CANVAS = 2147483640;
-export const Z_UI = 2147483646;
+/** Stacking order for Redline layers (the 32-bit signed integer maximum). */
+export const Z_CANVAS = 2147483646;
+export const Z_UI = 2147483647;
 
 /** Annotation colors offered in the toolbar. */
 export const COLORS = [

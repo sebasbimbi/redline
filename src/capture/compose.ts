@@ -1,6 +1,7 @@
 /** Stitch full-page capture slices into one tall PNG with annotations drawn on. */
 
 import type { RedlineDocument } from '../model/document';
+import { dataUrlToBlob } from '../export/clipboard';
 import { renderAnnotation } from '../overlay/Renderer';
 
 /** A captured viewport slice and the page scroll offset it was taken at. */
@@ -22,13 +23,16 @@ export async function composeFullPage(
   dpr: number,
   doc: RedlineDocument,
 ): Promise<Blob> {
-  const images = await Promise.all(slices.map((s) => decodeImage(s.dataUrl)));
+  // decode via createImageBitmap so a strict page CSP never blocks the load
+  const images = await Promise.all(
+    slices.map((s) => createImageBitmap(dataUrlToBlob(s.dataUrl))),
+  );
   const first = images[0];
   const last = slices[slices.length - 1];
   if (!first || !last) throw new Error('Full-page capture produced no slices.');
 
-  const sliceWidth = first.naturalWidth; // device pixels
-  const pageHeightDevice = last.scrollY * dpr + first.naturalHeight;
+  const sliceWidth = first.width; // device pixels
+  const pageHeightDevice = last.scrollY * dpr + first.height;
   // shrink only if the page is taller than a canvas can be
   const scale = Math.min(
     1,
@@ -58,16 +62,8 @@ export async function composeFullPage(
   }
   ctx.restore();
 
+  for (const image of images) image.close();
   return canvasToBlob(canvas);
-}
-
-function decodeImage(dataUrl: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('Failed to decode a captured slice.'));
-    img.src = dataUrl;
-  });
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
