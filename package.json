@@ -1,0 +1,23 @@
+{
+  "name": "redline",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Annotate live webpages and export structured change requests to Claude Code.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "compile": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "wxt": "^0.20.26"
+  },
+  "dependencies": {
+    "@medv/finder": "^4.0.2"
+  }
+}
