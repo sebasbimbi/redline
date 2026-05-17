@@ -90,6 +90,13 @@ function appendElement(out: string[], el: ElementMetadata | null): void {
   out.push(`- Selector: \`${el.selector}\``);
   out.push(`- Selector path: \`${el.selectorPath}\``);
   out.push(`- XPath: \`${el.xpath}\``);
+  if (el.inShadowDom) {
+    out.push(
+      '- Shadow DOM: this element is inside a shadow root. The Selector, ' +
+        'Selector path, and XPath above point at the shadow host component; ' +
+        'find the element inside that component by its tag and text.',
+    );
+  }
   out.push(`- Element: ${describeElement(el)}`);
   if (el.textSnippet) out.push(`- Current text: "${el.textSnippet}"`);
   const data = Object.entries(el.dataAttributes);

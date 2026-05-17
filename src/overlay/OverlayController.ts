@@ -225,6 +225,9 @@ export class OverlayController {
     this.sessionPrompt.close();
     this.engine.detach();
     this.canvas.unmount();
+    // drop the dead toolbar and panel so only the toast stays interactive
+    this.toolbar.el.remove();
+    this.panel.el.remove();
     // the extension APIs are dead, so the session cannot be flushed
     this.toast.show(
       'Redline was reloaded or updated. Refresh this page to use it again.',

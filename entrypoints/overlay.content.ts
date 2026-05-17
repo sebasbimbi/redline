@@ -34,7 +34,12 @@ export default defineContentScript({
     try {
       controller.mount();
     } catch (err) {
-      // a failed mount must not leave a half-built controller on the page
+      // a failed mount must not leave a half-built overlay on the page
+      try {
+        controller.unmount();
+      } catch {
+        /* ignore teardown failures; the original error matters more */
+      }
       delete win.__redlineController;
       console.error('Redline failed to start.', err);
     }

@@ -108,6 +108,12 @@ export interface ElementMetadata {
   selectorPath: string;
   /** XPath fallback locator. */
   xpath: string;
+  /**
+   * True when the element is inside a shadow root. The locators above then
+   * point at the outermost shadow host, since a shadow-scoped element has no
+   * document-resolvable selector.
+   */
+  inShadowDom: boolean;
   tag: string;
   id: string | null;
   classList: string[];

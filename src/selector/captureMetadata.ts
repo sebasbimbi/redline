@@ -20,10 +20,16 @@ export function captureMetadata(el: Element): ElementMetadata {
   const vw = window.innerWidth || 1;
   const vh = window.innerHeight || 1;
 
+  // a shadow-scoped element has no document-resolvable selector, so the
+  // locators are anchored to the outermost shadow host instead
+  const shadowHost = outermostShadowHost(el);
+  const locator = shadowHost ?? el;
+
   return {
-    selector: generateSelector(el),
-    selectorPath: selectorPath(el),
-    xpath: generateXPath(el),
+    selector: generateSelector(locator),
+    selectorPath: selectorPath(locator),
+    xpath: generateXPath(locator),
+    inShadowDom: shadowHost !== null,
     tag: el.tagName.toLowerCase(),
     id: el.id || null,
     classList: Array.from(el.classList),
@@ -127,4 +133,20 @@ function parentContext(el: Element): string | null {
   if (parent.id) return `${tag}#${parent.id}`;
   const cls = Array.from(parent.classList)[0];
   return cls ? `${tag}.${cls}` : tag;
+}
+
+/**
+ * The outermost shadow host when the element lives inside one or more shadow
+ * roots, or null when it is in the light DOM.
+ */
+function outermostShadowHost(el: Element): Element | null {
+  let host: Element | null = null;
+  let node: Node = el;
+  for (let depth = 0; depth < 12; depth += 1) {
+    const root = node.getRootNode();
+    if (!(root instanceof ShadowRoot)) break;
+    host = root.host;
+    node = root.host;
+  }
+  return host;
 }
