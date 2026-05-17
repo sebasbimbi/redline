@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Annotate live webpages and export structured change requests to Claude Code.",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "wxt",

@@ -95,4 +95,5 @@ and recovers cleanly if the extension is reloaded.
 
 ## License
 
-MIT
+[GPL-3.0-or-later](LICENSE). Redline is free software; any distributed
+derivative must also be released as open source under the same license.
