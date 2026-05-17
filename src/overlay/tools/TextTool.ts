@@ -1,4 +1,4 @@
-/** The callout tool: drop a numbered, element-anchored change request. */
+/** The text tool: place an editable text annotation (a change request). */
 
 import type { Tool, ToolContext } from './Tool';
 import type { ChangeRequestAnnotation } from '../../model/annotation';
@@ -7,13 +7,11 @@ import { changeRequestCount } from '../../model/document';
 import { captureMetadata } from '../../selector/captureMetadata';
 import { uid } from '../../platform/ids';
 
-/**
- * Click anywhere to drop a numbered marker anchored to the element under the
- * cursor. The label editor then opens for the requested change; the callout is
- * kept only if a non-empty label is saved.
- */
-export class CalloutTool implements Tool {
-  readonly id = 'callout' as const;
+/** Default on-canvas font size for a new text annotation. */
+const TEXT_FONT_SIZE = 16;
+
+export class TextTool implements Tool {
+  readonly id = 'text' as const;
 
   onPointerDown(ev: PointerEvent, ctx: ToolContext): void {
     const target = ctx.picker.pickAt(ev.clientX, ev.clientY);
@@ -22,8 +20,9 @@ export class CalloutTool implements Tool {
       createdAt: new Date().toISOString(),
       annotationClass: 'change-request',
       geometry: {
-        kind: 'callout',
-        anchor: clientToPage(ev.clientX, ev.clientY),
+        kind: 'text',
+        origin: clientToPage(ev.clientX, ev.clientY),
+        fontSize: TEXT_FONT_SIZE,
         color: ctx.doc.activeColor,
       },
       number: changeRequestCount(ctx.doc) + 1,

@@ -1,6 +1,6 @@
 /** The per-page annotation document (session). */
 
-import type { Annotation, ToolId } from './annotation';
+import type { Annotation, EditorTool } from './annotation';
 import { uid } from '../platform/ids';
 import { DEFAULT_COLOR, DEFAULT_STROKE_WIDTH } from '../platform/constants';
 
@@ -19,7 +19,7 @@ export interface RedlineDocument {
   viewport: Viewport;
   scroll: { x: number; y: number };
   annotations: Annotation[];
-  activeTool: ToolId;
+  activeTool: EditorTool;
   activeColor: string;
   activeStrokeWidth: number;
   createdAt: string;

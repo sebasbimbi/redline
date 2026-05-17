@@ -1,17 +1,41 @@
-/** Wires the overlay together: document, canvas, UI, drawing engine, export. */
+/** Wires the overlay together: document, canvas, tools, undo, UI, export. */
 
-import { createDocument, resequence } from '../model/document';
+import type {
+  Annotation,
+  ChangeRequestAnnotation,
+  EditorTool,
+  Geometry,
+} from '../model/annotation';
 import { isChangeRequest } from '../model/annotation';
+import { createDocument } from '../model/document';
+import { pageToClient } from '../model/geometry';
 import { AnnotationCanvas } from './AnnotationCanvas';
 import { ElementPicker } from './ElementPicker';
 import { DrawingEngine } from './DrawingEngine';
+import { UndoStack } from './UndoStack';
+import {
+  AddAnnotationCommand,
+  ClearAllCommand,
+  DeleteAnnotationCommand,
+  EditLabelCommand,
+  MoveAnnotationCommand,
+} from './commands';
 import { ToolRegistry } from './tools/ToolRegistry';
-import { CalloutTool } from './tools/CalloutTool';
 import type { ToolContext } from './tools/Tool';
+import { SelectTool } from './tools/SelectTool';
+import { CalloutTool } from './tools/CalloutTool';
+import { TextTool } from './tools/TextTool';
+import { RectangleTool } from './tools/RectangleTool';
+import { EllipseTool } from './tools/EllipseTool';
+import { ArrowTool } from './tools/ArrowTool';
+import { FreehandTool } from './tools/FreehandTool';
+import { HighlightTool } from './tools/HighlightTool';
 import { ShadowHost } from '../ui/ShadowHost';
 import { Toolbar } from '../ui/Toolbar';
+import type { ToolDef } from '../ui/Toolbar';
 import { LabelEditor } from '../ui/LabelEditor';
 import { Toast } from '../ui/Toast';
+import { COLORS, STROKE_WIDTHS } from '../platform/constants';
 import { captureViewport } from '../capture/captureViewport';
 import { buildMarkdown } from '../export/markdown';
 import { exportSlug } from '../export/filename';
@@ -30,6 +54,30 @@ interface ExportArtifacts {
   slug: string;
 }
 
+/** Tools shown in the toolbar, in order, with their single-key shortcuts. */
+const TOOL_DEFS: ToolDef[] = [
+  { id: 'select', label: 'Select & move', icon: 'select', hotkey: 'V' },
+  { id: 'callout', label: 'Callout', icon: 'callout', hotkey: 'C' },
+  { id: 'text', label: 'Text note', icon: 'text', hotkey: 'T' },
+  { id: 'rectangle', label: 'Rectangle', icon: 'rectangle', hotkey: 'R' },
+  { id: 'ellipse', label: 'Ellipse', icon: 'ellipse', hotkey: 'E' },
+  { id: 'arrow', label: 'Arrow', icon: 'arrow', hotkey: 'A' },
+  { id: 'freehand', label: 'Freehand', icon: 'freehand', hotkey: 'F' },
+  { id: 'highlight', label: 'Highlight', icon: 'highlight', hotkey: 'H' },
+];
+
+/** Single-key tool shortcuts. */
+const HOTKEYS: Record<string, EditorTool> = {
+  v: 'select',
+  c: 'callout',
+  t: 'text',
+  r: 'rectangle',
+  e: 'ellipse',
+  a: 'arrow',
+  f: 'freehand',
+  h: 'highlight',
+};
+
 /** The lifetime-scoped controller for one mounted overlay session. */
 export class OverlayController {
   private readonly doc = createDocument();
@@ -38,27 +86,65 @@ export class OverlayController {
   private readonly toast = new Toast(this.shadowHost.root);
   private readonly labelEditor = new LabelEditor(this.shadowHost.root);
   private readonly registry = new ToolRegistry();
+  private readonly undo = new UndoStack();
   private readonly picker: ElementPicker;
   private readonly engine: DrawingEngine;
   private readonly toolbar: Toolbar;
   private mounted = false;
   private busy = false;
+  private selectedId: string | null = null;
 
   constructor(private readonly opts: OverlayControllerOptions) {
     this.picker = new ElementPicker(
       (el) => el === this.canvas.el || el === this.shadowHost.host,
     );
+
+    this.registry.register(new SelectTool());
     this.registry.register(new CalloutTool());
+    this.registry.register(new TextTool());
+    this.registry.register(new RectangleTool());
+    this.registry.register(new EllipseTool());
+    this.registry.register(new ArrowTool());
+    this.registry.register(new FreehandTool());
+    this.registry.register(new HighlightTool());
 
     const toolContext: ToolContext = {
       doc: this.doc,
       picker: this.picker,
       render: () => this.canvas.requestRender(),
-      editLabel: (id) => this.openLabelEditor(id),
+      setDraft: (annotation) => this.setDraft(annotation),
+      addAnnotation: (annotation) => this.addAnnotation(annotation),
+      placeChangeRequest: (annotation) => this.placeChangeRequest(annotation),
+      recordMove: (id, before, after) => this.recordMove(id, before, after),
+      deleteAnnotation: (id) => this.removeAnnotation(id),
+      editLabel: (id) => this.editLabel(id),
+      getSelectedId: () => this.selectedId,
+      setSelectedId: (id) => this.setSelection(id),
+      setCursor: (cursor) => {
+        this.canvas.el.style.cursor = cursor;
+      },
     };
     this.engine = new DrawingEngine(this.canvas.el, this.registry, toolContext);
 
     this.toolbar = new Toolbar({
+      tools: TOOL_DEFS,
+      colors: COLORS,
+      widths: STROKE_WIDTHS,
+      activeTool: this.doc.activeTool,
+      activeColor: this.doc.activeColor,
+      activeWidth: this.doc.activeStrokeWidth,
+      onSelectTool: (id) => this.activateTool(id),
+      onSelectColor: (color) => {
+        this.doc.activeColor = color;
+        this.toolbar.setActiveColor(color);
+      },
+      onSelectWidth: (width) => {
+        this.doc.activeStrokeWidth = width;
+        this.toolbar.setActiveWidth(width);
+      },
+      onUndo: () => this.doUndo(),
+      onRedo: () => this.doRedo(),
+      onClear: () => this.doClear(),
       onCopy: () => void this.runCopy(),
       onSave: () => void this.runSave(false),
       onSaveAs: () => void this.runSave(true),
@@ -75,7 +161,12 @@ export class OverlayController {
     this.shadowHost.root.appendChild(this.toolbar.el);
     this.engine.attach();
     window.addEventListener('keydown', this.onKeyDown, true);
-    this.toast.show('Redline is on. Click an element to add a callout.');
+    this.updateCursor(this.doc.activeTool);
+    this.toolbar.setUndoEnabled(false);
+    this.toolbar.setRedoEnabled(false);
+    this.toast.show(
+      'Redline is on. Click to drop a callout, or pick another tool.',
+    );
   }
 
   unmount(): void {
@@ -91,58 +182,248 @@ export class OverlayController {
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
-    // Escape closes the overlay — unless the label editor has it (it handles
-    // its own Escape and stops propagation; this guard covers event ordering).
-    if (e.key === 'Escape' && !this.labelEditor.isOpen) {
+    if (e.key === 'Escape') {
+      // the label editor handles its own Escape and stops propagation
+      if (this.labelEditor.isOpen) return;
       e.preventDefault();
       this.unmount();
+      return;
+    }
+    // while the editor is open it owns the keyboard (undo, hotkeys, etc.)
+    if (this.labelEditor.isOpen) return;
+
+    if (e.metaKey || e.ctrlKey) {
+      const key = e.key.toLowerCase();
+      if (key === 'z') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.shiftKey) this.doRedo();
+        else this.doUndo();
+      } else if (key === 'y') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.doRedo();
+      }
+      return;
+    }
+    if (e.altKey) return;
+
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (this.selectedId) this.removeAnnotation(this.selectedId);
+      return;
+    }
+
+    const tool = HOTKEYS[e.key.toLowerCase()];
+    if (tool) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.activateTool(tool);
     }
   };
 
-  /** Open the label editor for a freshly placed (or existing) callout. */
-  private openLabelEditor(annotationId: string): void {
-    const annotation = this.doc.annotations.find((a) => a.id === annotationId);
-    if (!annotation || !isChangeRequest(annotation)) return;
-    if (annotation.geometry.kind !== 'callout') return;
+  // --- tool + state -------------------------------------------------------
 
+  private activateTool(tool: EditorTool): void {
+    this.engine.setActiveTool(tool);
+    this.doc.activeTool = tool;
+    this.toolbar.setActiveTool(tool);
+    if (tool !== 'select') this.setSelection(null);
+    this.updateCursor(tool);
+  }
+
+  private updateCursor(tool: EditorTool): void {
+    this.canvas.el.style.cursor =
+      tool === 'select' ? 'default' : tool === 'text' ? 'text' : 'crosshair';
+  }
+
+  private setDraft(annotation: Annotation | null): void {
+    this.canvas.draft = annotation;
+    this.canvas.requestRender();
+  }
+
+  private setSelection(id: string | null): void {
+    this.selectedId = id;
+    this.canvas.selectedId = id;
+    this.canvas.requestRender();
+  }
+
+  private syncSelectionToDoc(): void {
+    if (
+      this.selectedId &&
+      !this.doc.annotations.some((a) => a.id === this.selectedId)
+    ) {
+      this.setSelection(null);
+    }
+  }
+
+  private refreshHistory(): void {
+    this.toolbar.setUndoEnabled(this.undo.canUndo());
+    this.toolbar.setRedoEnabled(this.undo.canRedo());
+  }
+
+  // --- undo-backed mutations ---------------------------------------------
+
+  private addAnnotation(annotation: Annotation): void {
+    this.undo.execute(new AddAnnotationCommand(this.doc, annotation));
+    this.refreshHistory();
+    this.canvas.requestRender();
+  }
+
+  private recordMove(id: string, before: Geometry, after: Geometry): void {
+    this.undo.execute(new MoveAnnotationCommand(this.doc, id, before, after));
+    this.refreshHistory();
+    this.canvas.requestRender();
+  }
+
+  private removeAnnotation(id: string): void {
+    this.undo.execute(new DeleteAnnotationCommand(this.doc, id));
+    if (this.selectedId === id) this.setSelection(null);
+    this.refreshHistory();
+    this.canvas.requestRender();
+  }
+
+  private doUndo(): void {
+    if (!this.undo.undo()) return;
+    this.setDraft(null);
+    this.syncSelectionToDoc();
+    this.refreshHistory();
+    this.canvas.requestRender();
+  }
+
+  private doRedo(): void {
+    if (!this.undo.redo()) return;
+    this.setDraft(null);
+    this.syncSelectionToDoc();
+    this.refreshHistory();
+    this.canvas.requestRender();
+  }
+
+  private doClear(): void {
+    if (this.doc.annotations.length === 0) {
+      this.toast.show('There is nothing to clear yet.');
+      return;
+    }
+    this.undo.execute(new ClearAllCommand(this.doc));
+    this.setDraft(null);
+    this.setSelection(null);
+    this.refreshHistory();
+    this.canvas.requestRender();
+    this.toast.show('Cleared all annotations.');
+  }
+
+  // --- change-request labels ---------------------------------------------
+
+  /** Stage a new callout or text note: draft it, then open the label editor. */
+  private placeChangeRequest(annotation: ChangeRequestAnnotation): void {
+    this.setDraft(annotation);
     this.engine.setEnabled(false);
+    const anchor = this.editorAnchorOf(annotation);
+    const isText = annotation.geometry.kind === 'text';
     this.labelEditor.open({
-      clientX: annotation.geometry.anchor.x - window.scrollX,
-      clientY: annotation.geometry.anchor.y - window.scrollY,
+      clientX: anchor.x,
+      clientY: anchor.y,
       numberLabel: String(annotation.number),
-      initialValue: annotation.label,
+      initialValue: '',
+      placeholder: isText
+        ? 'Type the note to place on the page'
+        : 'e.g. Make this heading larger and bold',
+      onInput: isText
+        ? (value) => {
+            annotation.label = value;
+            this.canvas.requestRender();
+          }
+        : undefined,
       onCommit: (label) => {
-        if (label) annotation.label = label;
-        else this.removeAnnotation(annotationId);
         this.engine.setEnabled(true);
-        this.canvas.requestRender();
+        this.setDraft(null);
+        if (label) {
+          annotation.label = label;
+          this.addAnnotation(annotation);
+        }
       },
       onCancel: () => {
-        // a brand-new callout left without a label is discarded
-        if (!annotation.label) this.removeAnnotation(annotationId);
         this.engine.setEnabled(true);
+        this.setDraft(null);
+      },
+    });
+  }
+
+  /** Re-open the label editor for an existing change-request annotation. */
+  private editLabel(id: string): void {
+    const annotation = this.doc.annotations.find((a) => a.id === id);
+    if (!annotation || !isChangeRequest(annotation)) return;
+    const before = annotation.label;
+    const isText = annotation.geometry.kind === 'text';
+    this.engine.setEnabled(false);
+    const anchor = this.editorAnchorOf(annotation);
+    this.labelEditor.open({
+      clientX: anchor.x,
+      clientY: anchor.y,
+      numberLabel: String(annotation.number),
+      initialValue: before,
+      placeholder: isText
+        ? 'Type the note to place on the page'
+        : 'e.g. Make this heading larger and bold',
+      onInput: isText
+        ? (value) => {
+            annotation.label = value;
+            this.canvas.requestRender();
+          }
+        : undefined,
+      onCommit: (label) => {
+        this.engine.setEnabled(true);
+        // reset any live preview edits so the command owns the change
+        annotation.label = before;
+        if (label === before) {
+          this.canvas.requestRender();
+          return;
+        }
+        if (label === '') {
+          this.removeAnnotation(id);
+        } else {
+          this.undo.execute(
+            new EditLabelCommand(this.doc, id, before, label),
+          );
+          this.refreshHistory();
+          this.canvas.requestRender();
+        }
+      },
+      onCancel: () => {
+        this.engine.setEnabled(true);
+        annotation.label = before;
         this.canvas.requestRender();
       },
     });
   }
 
-  private removeAnnotation(id: string): void {
-    const index = this.doc.annotations.findIndex((a) => a.id === id);
-    if (index >= 0) {
-      this.doc.annotations.splice(index, 1);
-      resequence(this.doc);
-    }
+  /** Viewport coordinates to anchor the label editor to. */
+  private editorAnchorOf(annotation: ChangeRequestAnnotation): {
+    x: number;
+    y: number;
+  } {
+    const g = annotation.geometry;
+    return pageToClient(g.kind === 'callout' ? g.anchor : g.origin);
   }
 
-  private hasCallouts(): boolean {
-    return this.doc.annotations.some(isChangeRequest);
+  // --- export -------------------------------------------------------------
+
+  private hasAnnotations(): boolean {
+    return this.doc.annotations.length > 0;
   }
 
   /** Copy the screenshot + changelog to the clipboard. */
   private async runCopy(): Promise<void> {
     if (this.busy) return;
-    if (!this.hasCallouts()) {
-      this.toast.show('Add at least one callout before exporting.', {
+    if (this.labelEditor.isOpen) {
+      this.toast.show('Finish the current label first, then export.', {
+        tone: 'error',
+      });
+      return;
+    }
+    if (!this.hasAnnotations()) {
+      this.toast.show('Add at least one annotation before exporting.', {
         tone: 'error',
       });
       return;
@@ -181,6 +462,12 @@ export class OverlayController {
    */
   private async runSave(forcePicker: boolean): Promise<void> {
     if (this.busy) return;
+    if (this.labelEditor.isOpen) {
+      this.toast.show('Finish the current label first, then export.', {
+        tone: 'error',
+      });
+      return;
+    }
     if (!supportsFileSystemAccess()) {
       this.toast.show(
         'Saving to a folder needs a secure (https) page. Use Copy here instead.',
@@ -188,8 +475,8 @@ export class OverlayController {
       );
       return;
     }
-    if (!this.hasCallouts()) {
-      this.toast.show('Add at least one callout before exporting.', {
+    if (!this.hasAnnotations()) {
+      this.toast.show('Add at least one annotation before exporting.', {
         tone: 'error',
       });
       return;
@@ -229,19 +516,25 @@ export class OverlayController {
   }
 
   /**
-   * Hide the UI, screenshot the page, and build the export artifacts.
-   * Returns null on failure (a toast is shown). The caller owns `busy`.
+   * Hide Redline's own chrome, screenshot the page, and build the export
+   * artifacts. Returns null on failure (a toast is shown).
    */
   private async capture(): Promise<ExportArtifacts | null> {
+    const previousSelection = this.canvas.selectedId;
     try {
-      // hide our UI so it stays out of the screenshot; the canvas stays visible
+      // the annotation canvas is captured inline; keep the selection box and
+      // the Shadow DOM toolbar out of the screenshot
+      this.canvas.selectedId = null;
       this.shadowHost.host.style.visibility = 'hidden';
+      this.canvas.render();
       await nextFrame();
       let dataUrl: string;
       try {
         dataUrl = await captureViewport();
       } finally {
         this.shadowHost.host.style.visibility = '';
+        this.canvas.selectedId = previousSelection;
+        this.canvas.render();
       }
       this.doc.updatedAt = new Date().toISOString();
       const slug = exportSlug(this.doc.pageUrl);

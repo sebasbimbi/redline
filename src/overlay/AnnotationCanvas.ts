@@ -1,8 +1,10 @@
 /** The full-viewport canvas that renders annotations on top of the page. */
 
+import type { Annotation } from '../model/annotation';
 import type { RedlineDocument } from '../model/document';
 import { Z_CANVAS } from '../platform/constants';
-import { drawCallout, drawElementOutline } from './Renderer';
+import { annotationBounds } from '../model/geometryOps';
+import { renderAnnotation, drawSelectionBox } from './Renderer';
 
 /**
  * A `position: fixed` canvas covering the viewport. Annotation geometry is
@@ -11,6 +13,11 @@ import { drawCallout, drawElementOutline } from './Renderer';
  */
 export class AnnotationCanvas {
   readonly el: HTMLCanvasElement;
+  /** An in-progress annotation, drawn as a live preview above the rest. */
+  draft: Annotation | null = null;
+  /** The selected annotation's id; drawn with a selection box if set. */
+  selectedId: string | null = null;
+
   private readonly ctx: CanvasRenderingContext2D;
   private rafId = 0;
   private readonly onResize = (): void => this.resize();
@@ -60,20 +67,18 @@ export class AnnotationCanvas {
     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
     const sx = window.scrollX;
     const sy = window.scrollY;
-    for (const a of this.doc.annotations) {
-      if (a.annotationClass !== 'change-request') continue;
-      if (a.geometry.kind !== 'callout') continue;
-      if (a.element) {
-        const b = a.element.boundingBox;
-        drawElementOutline(ctx, b.x - sx, b.y - sy, b.w, b.h, a.geometry.color);
-      }
-      drawCallout(
-        ctx,
-        a.geometry.anchor.x - sx,
-        a.geometry.anchor.y - sy,
-        a.geometry.color,
-        String(a.number),
+    for (const annotation of this.doc.annotations) {
+      renderAnnotation(ctx, annotation, sx, sy);
+    }
+    if (this.draft) renderAnnotation(ctx, this.draft, sx, sy);
+    if (this.selectedId) {
+      const selected = this.doc.annotations.find(
+        (a) => a.id === this.selectedId,
       );
+      if (selected) {
+        const b = annotationBounds(selected);
+        drawSelectionBox(ctx, { x: b.x - sx, y: b.y - sy, w: b.w, h: b.h });
+      }
     }
   }
 

@@ -14,6 +14,9 @@ export type ToolId =
 
 export type AnnotationClass = 'visual-emphasis' | 'change-request';
 
+/** Everything the editor can route pointer input to: the 7 tools plus Select. */
+export type EditorTool = ToolId | 'select';
+
 /**
  * Which class each tool produces. Change-request annotations are numbered,
  * labeled, element-anchored, and appear in the exported changelog. Visual-

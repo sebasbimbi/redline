@@ -1,6 +1,6 @@
 /** Routes canvas pointer input to the active tool. */
 
-import type { ToolId } from '../model/annotation';
+import type { EditorTool } from '../model/annotation';
 import type { Tool, ToolContext } from './tools/Tool';
 import type { ToolRegistry } from './tools/ToolRegistry';
 
@@ -11,13 +11,36 @@ export class DrawingEngine {
   private readonly onPointerDown = (ev: PointerEvent): void => {
     if (!this.enabled) return;
     ev.preventDefault();
+    try {
+      this.canvas.setPointerCapture(ev.pointerId);
+    } catch {
+      /* the pointer may already be gone; ignore */
+    }
     this.active.onPointerDown(ev, this.ctx);
   };
+
   private readonly onPointerMove = (ev: PointerEvent): void => {
+    if (!this.enabled) return;
     this.active.onPointerMove?.(ev, this.ctx);
   };
+
   private readonly onPointerUp = (ev: PointerEvent): void => {
+    try {
+      this.canvas.releasePointerCapture(ev.pointerId);
+    } catch {
+      /* ignore */
+    }
+    if (!this.enabled) return;
     this.active.onPointerUp?.(ev, this.ctx);
+  };
+
+  private readonly onPointerCancel = (ev: PointerEvent): void => {
+    try {
+      this.canvas.releasePointerCapture(ev.pointerId);
+    } catch {
+      /* ignore */
+    }
+    this.active.onPointerCancel?.(this.ctx);
   };
 
   constructor(
@@ -32,17 +55,18 @@ export class DrawingEngine {
     this.canvas.addEventListener('pointerdown', this.onPointerDown);
     this.canvas.addEventListener('pointermove', this.onPointerMove);
     this.canvas.addEventListener('pointerup', this.onPointerUp);
+    this.canvas.addEventListener('pointercancel', this.onPointerCancel);
   }
 
   detach(): void {
     this.canvas.removeEventListener('pointerdown', this.onPointerDown);
     this.canvas.removeEventListener('pointermove', this.onPointerMove);
     this.canvas.removeEventListener('pointerup', this.onPointerUp);
+    this.canvas.removeEventListener('pointercancel', this.onPointerCancel);
   }
 
-  setActiveTool(id: ToolId): void {
+  setActiveTool(id: EditorTool): void {
     this.active = this.registry.get(id);
-    this.ctx.doc.activeTool = id;
   }
 
   /** Suspend or resume pointer handling (e.g. while the label editor is open). */
@@ -50,7 +74,7 @@ export class DrawingEngine {
     this.enabled = enabled;
   }
 
-  get activeToolId(): ToolId {
+  get activeToolId(): EditorTool {
     return this.active.id;
   }
 }

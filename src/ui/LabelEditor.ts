@@ -8,6 +8,10 @@ export interface LabelEditorOpenOptions {
   numberLabel: string;
   /** Existing label text (empty for a new callout). */
   initialValue: string;
+  /** Called on every keystroke, for live preview of text annotations. */
+  onInput?: (value: string) => void;
+  /** Placeholder shown in the empty textarea. */
+  placeholder?: string;
   /** Called with the trimmed value on Enter or blur. */
   onCommit: (label: string) => void;
   /** Called when the user presses Escape. */
@@ -43,7 +47,8 @@ export class LabelEditor {
 
     const textarea = document.createElement('textarea');
     textarea.rows = 3;
-    textarea.placeholder = 'e.g. Make this heading larger and bold';
+    textarea.placeholder =
+      opts.placeholder ?? 'e.g. Make this heading larger and bold';
     textarea.value = opts.initialValue;
 
     const footer = document.createElement('div');
@@ -68,6 +73,7 @@ export class LabelEditor {
     // Keep keystrokes from reaching the page (it may have its own shortcuts).
     textarea.addEventListener('keyup', (e) => e.stopPropagation());
     textarea.addEventListener('keypress', (e) => e.stopPropagation());
+    textarea.addEventListener('input', () => opts.onInput?.(textarea.value));
     textarea.addEventListener('keydown', (e) => {
       e.stopPropagation();
       if (e.key === 'Enter' && !e.shiftKey) {

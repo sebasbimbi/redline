@@ -30,9 +30,17 @@ In `chrome://extensions` (or `arc://extensions`):
    Store).
 2. Press Cmd+Shift+M (Mac) or Ctrl+Shift+M, or click the Redline icon and
    choose Activate.
-3. Click an element. A numbered marker drops and a label box opens. Type the
-   change you want.
-4. Add as many callouts as you need.
+3. Pick a tool from the toolbar (or press its shortcut key):
+   - **Callout** (C) drops a numbered marker on an element and opens a box for
+     the change you want. **Text** (T) places an editable note. Both are
+     element-anchored and appear in the exported changelog.
+   - **Rectangle** (R), **Ellipse** (E), **Arrow** (A), **Freehand** (F), and
+     **Highlight** (H) are visual emphasis: drawn on the screenshot, but they
+     do not create changelog entries.
+   - **Select** (V) picks an annotation. Drag to move it, press Delete to
+     remove it, double-click a callout or note to re-edit its label.
+4. Undo and redo with the toolbar arrows or Cmd/Ctrl+Z. Pick a color and
+   stroke width from the toolbar; Clear removes everything.
 5. Export with the toolbar:
    - **Copy** puts the screenshot and changelog on the clipboard.
    - **Save** writes `{date}_{site}_redline.png` and `.md` into a folder you
@@ -69,9 +77,10 @@ pnpm compile    # type-check only
 
 ## Status
 
-Phase 2. Working: callout tool, selector and metadata capture, viewport
-screenshot, clipboard and folder-save export, the `/redline` command.
-Planned: the remaining drawing tools, undo, full-page capture, and polish.
+Phase 3. Working: all seven annotation tools (callout, text, rectangle,
+ellipse, arrow, freehand, highlight), select and move, undo and redo, selector
+and metadata capture, viewport screenshot, clipboard and folder-save export,
+the `/redline` command. Planned: full-page capture and cross-browser polish.
 
 ## License
 

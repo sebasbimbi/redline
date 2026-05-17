@@ -19,6 +19,7 @@
     "wxt": "^0.20.26"
   },
   "dependencies": {
-    "@medv/finder": "^4.0.2"
+    "@medv/finder": "^4.0.2",
+    "perfect-freehand": "^1.2.3"
   }
 }

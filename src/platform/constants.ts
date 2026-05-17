@@ -24,7 +24,10 @@ export const COLORS = [
 ] as const;
 
 export const DEFAULT_COLOR: string = COLORS[0];
-export const DEFAULT_STROKE_WIDTH = 3;
+
+/** Stroke widths offered in the toolbar. DEFAULT_STROKE_WIDTH must be one. */
+export const STROKE_WIDTHS = [2, 3, 5] as const;
+export const DEFAULT_STROKE_WIDTH: number = STROKE_WIDTHS[1];
 
 /** URL schemes Redline cannot annotate (no script injection, no capture). */
 const NON_CAPTURABLE_SCHEMES = [

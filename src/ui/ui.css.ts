@@ -9,8 +9,11 @@ export const UI_CSS = `
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 5px;
+  max-width: calc(100vw - 24px);
   padding: 6px;
   background: rgba(22, 22, 24, 0.92);
   -webkit-backdrop-filter: blur(10px);
@@ -26,10 +29,16 @@ export const UI_CSS = `
   user-select: none;
 }
 
+.redline-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .redline-wordmark {
   font-weight: 600;
   letter-spacing: 0.02em;
-  padding: 0 8px 0 6px;
+  padding: 0 6px;
 }
 
 .redline-divider {
@@ -53,16 +62,18 @@ export const UI_CSS = `
   border-radius: 7px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 7px;
   transition: background-color 0.12s ease;
 }
 .redline-btn:hover { background: rgba(255, 255, 255, 0.16); }
-.redline-btn:disabled { opacity: 0.55; cursor: default; }
+.redline-btn:disabled { opacity: 0.4; cursor: default; }
 .redline-btn.is-active { background: #e5484d; }
 .redline-btn.is-active:hover { background: #ec5d62; }
 .redline-btn-primary { background: #0091ff; }
 .redline-btn-primary:hover { background: #2aa1ff; }
-.redline-btn-icon { padding: 7px 9px; font-size: 12px; }
+.redline-btn-icon { width: 30px; height: 30px; padding: 0; }
+.redline-btn svg { display: block; }
 
 .redline-save-group { display: inline-flex; }
 .redline-split-main {
@@ -73,14 +84,54 @@ export const UI_CSS = `
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
   margin-left: 1px;
-  padding-left: 8px;
-  padding-right: 8px;
+  width: 24px;
+  padding-left: 0;
+  padding-right: 0;
   font-size: 10px;
 }
 
-.redline-dot {
-  width: 11px;
-  height: 11px;
+.redline-swatch {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  background: currentColor;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+.redline-swatch:hover { transform: scale(1.12); }
+.redline-swatch.is-active {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45);
+}
+
+.redline-width {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.12s ease;
+}
+.redline-width:hover { background: rgba(255, 255, 255, 0.16); }
+.redline-width.is-active { background: rgba(255, 255, 255, 0.26); }
+.redline-width-dot {
+  display: block;
   border-radius: 50%;
   background: currentColor;
 }
