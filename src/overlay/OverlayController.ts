@@ -274,6 +274,11 @@ export class OverlayController {
     if (e.key === 'Escape') {
       // the label editor handles its own Escape and stops propagation
       if (this.labelEditor.isOpen) return;
+      // an open picker popover takes Escape before the overlay closes
+      if (this.toolbar.closeOpenPopover()) {
+        e.preventDefault();
+        return;
+      }
       e.preventDefault();
       this.unmount();
       return;

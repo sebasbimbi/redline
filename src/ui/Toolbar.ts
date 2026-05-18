@@ -1,8 +1,9 @@
 /** The floating Redline toolbar: tools, color, stroke width, history, export. */
 
-import type { EditorTool } from '../model/annotation';
+import { TOOL_CLASS, type EditorTool } from '../model/annotation';
 import type { ToolbarPosition } from '../platform/settings';
 import { ICONS, type IconName } from './icons';
+import { Popover, isPopoverOpen } from './Popover';
 
 /** One selectable tool, as presented in the toolbar. */
 export interface ToolDef {
@@ -45,11 +46,32 @@ const TOOLTIP_DELAY = 430;
 /** Gap kept between the toolbar (or a tooltip) and the viewport edge. */
 const EDGE_MARGIN = 8;
 
+/**
+ * A visual-emphasis tool (rectangle, ellipse, arrow, freehand, highlight)
+ * lives inside the shapes popover. Select, callout, and text keep their own
+ * toolbar buttons.
+ */
+function isEmphasisTool(id: EditorTool): boolean {
+  return id !== 'select' && TOOL_CLASS[id] === 'visual-emphasis';
+}
+
 export class Toolbar {
   readonly el: HTMLElement;
+  /** Tools shown as their own buttons: select, callout, text. */
   private readonly toolButtons = new Map<EditorTool, HTMLButtonElement>();
+  /** Visual-emphasis tools, shown inside the shapes popover. */
+  private readonly shapeButtons = new Map<EditorTool, HTMLButtonElement>();
   private readonly colorButtons = new Map<string, HTMLButtonElement>();
   private readonly widthButtons = new Map<number, HTMLButtonElement>();
+  private readonly toolDefs = new Map<EditorTool, ToolDef>();
+  private readonly shapesTrigger: HTMLButtonElement;
+  private readonly shapesIcon: HTMLElement;
+  private readonly colorDot: HTMLElement;
+  private readonly widthDot: HTMLElement;
+  private readonly shapesPopover: Popover;
+  private readonly colorPopover: Popover;
+  private readonly widthPopover: Popover;
+  private lastEmphasisTool: EditorTool;
   private readonly undoBtn: HTMLButtonElement;
   private readonly redoBtn: HTMLButtonElement;
   private readonly panelBtn: HTMLButtonElement;
@@ -70,14 +92,21 @@ export class Toolbar {
     this.el = document.createElement('div');
     this.el.className = 'redline-toolbar';
 
+    for (const tool of opts.tools) this.toolDefs.set(tool.id, tool);
+    const emphasisTools = opts.tools.filter((t) => isEmphasisTool(t.id));
+    const primaryTools = opts.tools.filter((t) => !isEmphasisTool(t.id));
+    this.lastEmphasisTool = isEmphasisTool(opts.activeTool)
+      ? opts.activeTool
+      : (emphasisTools[0]?.id ?? 'rectangle');
+
     const wordmark = document.createElement('span');
     wordmark.className = 'redline-wordmark';
     wordmark.textContent = 'Redline';
     wordmark.dataset.tip = 'Drag to move the toolbar anywhere on the page.';
 
-    // Tools.
+    // Primary tools: select, callout, text.
     const toolGroup = group();
-    for (const tool of opts.tools) {
+    for (const tool of primaryTools) {
       const btn = iconButton(
         ICONS[tool.icon],
         `${tool.label} (${tool.hotkey}). ${tool.description}`,
@@ -91,44 +120,99 @@ export class Toolbar {
       toolGroup.appendChild(btn);
     }
 
-    // Colors.
-    const colorGroup = group();
+    // Shapes: the visual-emphasis tools, collapsed behind one popover button.
+    this.shapesIcon = document.createElement('span');
+    this.shapesIcon.className = 'redline-trigger-icon';
+    this.shapesIcon.innerHTML = this.iconFor(this.lastEmphasisTool);
+    this.shapesTrigger = triggerButton(
+      this.shapesIcon,
+      'Shapes (R E A F H). Rectangle, ellipse, arrow, freehand, highlight. ' +
+        'Visual emphasis, not change requests.',
+    );
+    if (isEmphasisTool(opts.activeTool)) {
+      this.shapesTrigger.classList.add('is-active');
+    }
+    const shapesPanel = popoverPanel();
+    for (const tool of emphasisTools) {
+      const btn = menuIconButton(
+        ICONS[tool.icon],
+        `${tool.label} (${tool.hotkey})`,
+      );
+      if (tool.id === opts.activeTool) btn.classList.add('is-active');
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        opts.onSelectTool(tool.id);
+        this.shapesPopover.close();
+      });
+      this.shapeButtons.set(tool.id, btn);
+      shapesPanel.appendChild(btn);
+    }
+    toolGroup.appendChild(this.shapesTrigger);
+    this.shapesPopover = new Popover(this.el, this.shapesTrigger, shapesPanel);
+
+    // Color: the swatches, collapsed behind one popover button.
+    this.colorDot = document.createElement('span');
+    this.colorDot.className = 'redline-trigger-swatch';
+    this.colorDot.style.background = opts.activeColor;
+    const colorTrigger = triggerButton(
+      this.colorDot,
+      'Annotation color. Click to choose.',
+    );
+    const colorPanel = popoverPanel();
     opts.colors.forEach((color, i) => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'redline-swatch';
       btn.style.color = color;
-      setTip(btn, `Annotation color: ${COLOR_NAMES[i] ?? color}`);
+      btn.setAttribute('aria-label', `Color: ${COLOR_NAMES[i] ?? color}`);
       if (color === opts.activeColor) btn.classList.add('is-active');
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         opts.onSelectColor(color);
+        this.colorPopover.close();
       });
       this.colorButtons.set(color, btn);
-      colorGroup.appendChild(btn);
+      colorPanel.appendChild(btn);
     });
+    this.colorPopover = new Popover(this.el, colorTrigger, colorPanel);
 
-    // Stroke widths.
-    const widthGroup = group();
+    // Stroke width: the dots, collapsed behind one popover button.
+    this.widthDot = document.createElement('span');
+    this.widthDot.className = 'redline-width-dot';
+    sizeWidthDot(this.widthDot, opts.activeWidth);
+    const widthSlot = document.createElement('span');
+    widthSlot.className = 'redline-trigger-icon';
+    widthSlot.appendChild(this.widthDot);
+    const widthTrigger = triggerButton(
+      widthSlot,
+      'Stroke width. Click to choose.',
+    );
+    const widthPanel = popoverPanel();
     opts.widths.forEach((width, i) => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'redline-width';
-      setTip(btn, `${WIDTH_NAMES[i] ?? 'Stroke'} stroke width`);
+      btn.setAttribute(
+        'aria-label',
+        `${WIDTH_NAMES[i] ?? 'Stroke'} stroke width`,
+      );
       const dot = document.createElement('span');
       dot.className = 'redline-width-dot';
-      const diameter = Math.round(4 + width * 1.4);
-      dot.style.width = `${diameter}px`;
-      dot.style.height = `${diameter}px`;
+      sizeWidthDot(dot, width);
       btn.appendChild(dot);
       if (width === opts.activeWidth) btn.classList.add('is-active');
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         opts.onSelectWidth(width);
+        this.widthPopover.close();
       });
       this.widthButtons.set(width, btn);
-      widthGroup.appendChild(btn);
+      widthPanel.appendChild(btn);
     });
+    this.widthPopover = new Popover(this.el, widthTrigger, widthPanel);
+
+    const styleGroup = group();
+    styleGroup.append(colorTrigger, widthTrigger);
 
     // History and panel.
     this.undoBtn = iconButton(ICONS.undo, 'Undo the last change (Cmd/Ctrl+Z).');
@@ -216,8 +300,7 @@ export class Toolbar {
       divider(),
       toolGroup,
       divider(),
-      colorGroup,
-      widthGroup,
+      styleGroup,
       divider(),
       historyGroup,
       divider(),
@@ -236,22 +319,39 @@ export class Toolbar {
     window.addEventListener('resize', this.onResize);
   }
 
-  /** Highlight the active tool button. */
+  /** The icon SVG markup for a tool id, falling back to the rectangle icon. */
+  private iconFor(id: EditorTool): string {
+    const def = this.toolDefs.get(id);
+    return def ? ICONS[def.icon] : ICONS.rectangle;
+  }
+
+  /** Highlight the active tool button, and mirror it on the shapes trigger. */
   setActiveTool(id: EditorTool): void {
     for (const [toolId, btn] of this.toolButtons) {
       btn.classList.toggle('is-active', toolId === id);
     }
+    for (const [toolId, btn] of this.shapeButtons) {
+      btn.classList.toggle('is-active', toolId === id);
+    }
+    const emphasis = isEmphasisTool(id);
+    this.shapesTrigger.classList.toggle('is-active', emphasis);
+    if (emphasis) {
+      this.lastEmphasisTool = id;
+      this.shapesIcon.innerHTML = this.iconFor(id);
+    }
   }
 
-  /** Highlight the active color swatch. */
+  /** Highlight the active color swatch and update the color trigger. */
   setActiveColor(color: string): void {
+    this.colorDot.style.background = color;
     for (const [value, btn] of this.colorButtons) {
       btn.classList.toggle('is-active', value === color);
     }
   }
 
-  /** Highlight the active stroke-width button. */
+  /** Highlight the active stroke width and update the width trigger. */
   setActiveWidth(width: number): void {
+    sizeWidthDot(this.widthDot, width);
     for (const [value, btn] of this.widthButtons) {
       btn.classList.toggle('is-active', value === width);
     }
@@ -282,6 +382,23 @@ export class Toolbar {
     this.saveAsBtn.disabled = busy;
   }
 
+  /** Close whichever picker popover is open. Returns whether one was. */
+  closeOpenPopover(): boolean {
+    if (this.shapesPopover.isOpen) {
+      this.shapesPopover.close();
+      return true;
+    }
+    if (this.colorPopover.isOpen) {
+      this.colorPopover.close();
+      return true;
+    }
+    if (this.widthPopover.isOpen) {
+      this.widthPopover.close();
+      return true;
+    }
+    return false;
+  }
+
   /** Restore a saved position, re-clamped to the current viewport. */
   restorePosition(position: ToolbarPosition): void {
     this.moveTo(position.x, position.y);
@@ -291,6 +408,9 @@ export class Toolbar {
   destroy(): void {
     window.removeEventListener('resize', this.onResize);
     window.clearTimeout(this.tipTimer);
+    this.shapesPopover.close();
+    this.colorPopover.close();
+    this.widthPopover.close();
   }
 
   // --- drag ---------------------------------------------------------------
@@ -375,7 +495,7 @@ export class Toolbar {
 
   private scheduleTip(target: HTMLElement): void {
     window.clearTimeout(this.tipTimer);
-    if (this.dragging) return;
+    if (this.dragging || isPopoverOpen()) return;
     const text = target.dataset.tip;
     if (!text) return;
     this.tipTimer = window.setTimeout(
@@ -444,6 +564,43 @@ function iconButton(icon: string, tip: string): HTMLButtonElement {
   button.innerHTML = icon;
   setTip(button, tip);
   return button;
+}
+
+/** An icon button for inside a popover: an accessible label, but no tooltip. */
+function menuIconButton(icon: string, ariaLabel: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'redline-btn redline-btn-icon';
+  button.innerHTML = icon;
+  button.setAttribute('aria-label', ariaLabel);
+  return button;
+}
+
+/** A toolbar button that opens a popover: a content slot plus a caret. */
+function triggerButton(content: HTMLElement, tip: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'redline-btn redline-trigger';
+  const caret = document.createElement('span');
+  caret.className = 'redline-caret';
+  caret.textContent = '▾';
+  button.append(content, caret);
+  setTip(button, tip);
+  return button;
+}
+
+/** An empty popover panel, to be filled with its controls. */
+function popoverPanel(): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'redline-popover';
+  return el;
+}
+
+/** Size a stroke-width dot to match its width value. */
+function sizeWidthDot(dot: HTMLElement, width: number): void {
+  const diameter = Math.round(4 + width * 1.4);
+  dot.style.width = `${diameter}px`;
+  dot.style.height = `${diameter}px`;
 }
 
 function textButton(

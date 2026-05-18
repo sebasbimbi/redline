@@ -171,6 +171,61 @@ export const UI_CSS = `
   background: currentColor;
 }
 
+.redline-trigger {
+  height: 30px;
+  padding: 0 7px;
+  gap: 4px;
+}
+.redline-trigger.is-open {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+.redline-trigger-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+.redline-trigger-swatch {
+  display: block;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+.redline-caret {
+  font-size: 8px;
+  line-height: 1;
+  opacity: 0.5;
+}
+
+.redline-popover {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px;
+  background: rgba(22, 22, 24, 0.98);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  cursor: default;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.1s ease;
+}
+.redline-popover.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+
 .redline-label-editor {
   position: fixed;
   width: 284px;
