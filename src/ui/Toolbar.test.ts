@@ -134,6 +134,13 @@ describe('Toolbar', () => {
     expect(onSelectColor).toHaveBeenCalledWith(COLORS[0]);
   });
 
+  it('reports a custom color from the color input', () => {
+    const { toolbar, onSelectColor } = setup();
+    byLabel(toolbar, 'Annotation color').click();
+    byLabel(toolbar, 'Custom color').dispatchEvent(new Event('change'));
+    expect(onSelectColor).toHaveBeenCalled();
+  });
+
   it('reports a width choice from the width popover', () => {
     const { toolbar, onSelectWidth } = setup();
     byLabel(toolbar, 'Stroke width').click();

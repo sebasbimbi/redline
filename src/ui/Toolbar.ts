@@ -68,6 +68,7 @@ export class Toolbar {
   private readonly shapesTrigger: HTMLButtonElement;
   private readonly shapesIcon: HTMLElement;
   private readonly colorDot: HTMLElement;
+  private readonly colorInput: HTMLInputElement;
   private readonly widthDot: HTMLElement;
   private readonly shapesPopover: Popover;
   private readonly colorPopover: Popover;
@@ -175,6 +176,17 @@ export class Toolbar {
       this.colorButtons.set(color, btn);
       colorPanel.appendChild(btn);
     });
+    this.colorInput = document.createElement('input');
+    this.colorInput.type = 'color';
+    this.colorInput.className = 'redline-color-input';
+    this.colorInput.value = opts.activeColor;
+    this.colorInput.setAttribute('aria-label', 'Custom color');
+    this.colorInput.addEventListener('click', (e) => e.stopPropagation());
+    this.colorInput.addEventListener('change', () => {
+      opts.onSelectColor(this.colorInput.value);
+      this.colorPopover.close();
+    });
+    colorPanel.appendChild(this.colorInput);
     this.colorPopover = new Popover(this.el, colorTrigger, colorPanel);
 
     // Stroke width: the dots, collapsed behind one popover button.
@@ -356,6 +368,7 @@ export class Toolbar {
   /** Highlight the active color swatch and update the color trigger. */
   setActiveColor(color: string): void {
     this.colorDot.style.background = color;
+    this.colorInput.value = color;
     for (const [value, btn] of this.colorButtons) {
       btn.classList.toggle('is-active', value === color);
     }

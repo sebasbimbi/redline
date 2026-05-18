@@ -145,6 +145,24 @@ export const UI_CSS = `
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45);
 }
 
+.redline-color-input {
+  flex: none;
+  width: 22px;
+  height: 18px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 5px;
+  background: none;
+  cursor: pointer;
+}
+.redline-color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+.redline-color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
 .redline-width {
   appearance: none;
   -webkit-appearance: none;
