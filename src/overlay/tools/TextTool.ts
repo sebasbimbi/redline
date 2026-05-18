@@ -13,8 +13,13 @@ const TEXT_FONT_SIZE = 16;
 export class TextTool implements Tool {
   readonly id = 'text' as const;
 
+  onPointerMove(ev: PointerEvent, ctx: ToolContext): void {
+    ctx.inspectAt(ev.clientX, ev.clientY);
+  }
+
   onPointerDown(ev: PointerEvent, ctx: ToolContext): void {
-    const target = ctx.picker.pickAt(ev.clientX, ev.clientY);
+    ctx.inspectAt(ev.clientX, ev.clientY);
+    const target = ctx.pickedElement();
     const annotation: ChangeRequestAnnotation = {
       id: uid(),
       createdAt: new Date().toISOString(),

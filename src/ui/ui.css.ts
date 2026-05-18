@@ -27,7 +27,10 @@ export const UI_CSS = `
   line-height: 1;
   color: #ffffff;
   user-select: none;
+  cursor: grab;
+  touch-action: none;
 }
+.redline-toolbar.is-dragging { cursor: grabbing; }
 
 .redline-group {
   display: inline-flex;
@@ -39,6 +42,38 @@ export const UI_CSS = `
   font-weight: 600;
   letter-spacing: 0.02em;
   padding: 0 6px;
+}
+
+.redline-tooltip {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  top: 0;
+  /* size to the text, not to the gap left of the toolbar edge: an absolute
+     box with only its left offset set otherwise shrink-wraps into that gap,
+     which collapsed tooltips on right-side buttons into a narrow column */
+  width: max-content;
+  max-width: 232px;
+  padding: 6px 9px;
+  background: rgba(8, 8, 10, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.94);
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%);
+  transition: opacity 0.1s ease;
+}
+.redline-tooltip.is-visible {
+  opacity: 1;
+  visibility: visible;
 }
 
 .redline-divider {
@@ -372,4 +407,59 @@ export const UI_CSS = `
 }
 .redline-toast.is-visible { opacity: 1; transform: translateY(0); }
 .redline-toast.is-error { border-color: rgba(229, 72, 77, 0.65); }
+
+.redline-inspect-box {
+  position: fixed;
+  margin: 0;
+  border: 2px solid #0091ff;
+  border-radius: 2px;
+  background: rgba(0, 145, 255, 0.12);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.08s ease;
+}
+.redline-inspect-box.is-visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.redline-inspect-label {
+  position: fixed;
+  width: max-content;
+  max-width: 340px;
+  padding: 5px 8px;
+  background: rgba(8, 8, 10, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.35;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.08s ease;
+}
+.redline-inspect-label.is-visible {
+  opacity: 1;
+  visibility: visible;
+}
+.redline-inspect-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  word-break: break-all;
+}
+.redline-inspect-meta {
+  margin-top: 1px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.redline-inspect-dims { color: #4db2ff; }
+.redline-inspect-hint {
+  margin-left: 8px;
+  color: rgba(255, 255, 255, 0.45);
+}
 `;

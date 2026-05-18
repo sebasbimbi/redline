@@ -13,6 +13,7 @@ import { pageToClient } from '../model/geometry';
 import { annotationBounds } from '../model/geometryOps';
 import { AnnotationCanvas } from './AnnotationCanvas';
 import { ElementPicker } from './ElementPicker';
+import { ElementInspector } from './ElementInspector';
 import { DrawingEngine } from './DrawingEngine';
 import { UndoStack } from './UndoStack';
 import { SessionStore } from './SessionStore';
@@ -36,12 +37,13 @@ import { HighlightTool } from './tools/HighlightTool';
 import { ShadowHost } from '../ui/ShadowHost';
 import { Toolbar } from '../ui/Toolbar';
 import type { ToolDef } from '../ui/Toolbar';
+import { ElementHighlighter } from '../ui/ElementHighlighter';
 import { SidePanel } from '../ui/SidePanel';
 import { SessionPrompt } from '../ui/SessionPrompt';
 import { LabelEditor } from '../ui/LabelEditor';
 import { Toast } from '../ui/Toast';
 import { COLORS, STROKE_WIDTHS } from '../platform/constants';
-import { loadSettings } from '../platform/settings';
+import { loadSettings, saveToolbarPosition } from '../platform/settings';
 import type { RedlineSettings } from '../platform/settings';
 import { captureViewport } from '../capture/captureViewport';
 import { captureFullPage } from '../capture/fullPage';
@@ -65,14 +67,22 @@ interface ExportArtifacts {
 
 /** Tools shown in the toolbar, in order, with their single-key shortcuts. */
 const TOOL_DEFS: ToolDef[] = [
-  { id: 'select', label: 'Select & move', icon: 'select', hotkey: 'V' },
-  { id: 'callout', label: 'Callout', icon: 'callout', hotkey: 'C' },
-  { id: 'text', label: 'Text note', icon: 'text', hotkey: 'T' },
-  { id: 'rectangle', label: 'Rectangle', icon: 'rectangle', hotkey: 'R' },
-  { id: 'ellipse', label: 'Ellipse', icon: 'ellipse', hotkey: 'E' },
-  { id: 'arrow', label: 'Arrow', icon: 'arrow', hotkey: 'A' },
-  { id: 'freehand', label: 'Freehand', icon: 'freehand', hotkey: 'F' },
-  { id: 'highlight', label: 'Highlight', icon: 'highlight', hotkey: 'H' },
+  { id: 'select', label: 'Select & move', icon: 'select', hotkey: 'V',
+    description: 'Pick a mark to drag it, or press Delete to remove it.' },
+  { id: 'callout', label: 'Callout', icon: 'callout', hotkey: 'C',
+    description: 'Drop a numbered marker on an element, then describe the change.' },
+  { id: 'text', label: 'Text note', icon: 'text', hotkey: 'T',
+    description: 'Place an editable note anchored to an element.' },
+  { id: 'rectangle', label: 'Rectangle', icon: 'rectangle', hotkey: 'R',
+    description: 'Draw a rectangle. Visual emphasis, not a change request.' },
+  { id: 'ellipse', label: 'Ellipse', icon: 'ellipse', hotkey: 'E',
+    description: 'Draw an ellipse. Visual emphasis, not a change request.' },
+  { id: 'arrow', label: 'Arrow', icon: 'arrow', hotkey: 'A',
+    description: 'Draw an arrow. Visual emphasis, not a change request.' },
+  { id: 'freehand', label: 'Freehand', icon: 'freehand', hotkey: 'F',
+    description: 'Draw a freehand stroke. Visual emphasis, not a change request.' },
+  { id: 'highlight', label: 'Highlight', icon: 'highlight', hotkey: 'H',
+    description: 'Brush a translucent highlight over an area.' },
 ];
 
 /** Single-key tool shortcuts. */
@@ -99,6 +109,7 @@ export class OverlayController {
   private readonly undo = new UndoStack();
   private readonly session = new SessionStore();
   private readonly picker: ElementPicker;
+  private readonly inspector: ElementInspector;
   private readonly engine: DrawingEngine;
   private readonly toolbar: Toolbar;
   private readonly panel: SidePanel;
@@ -112,6 +123,10 @@ export class OverlayController {
     this.picker = new ElementPicker(
       (el) => el === this.canvas.el || el === this.shadowHost.host,
     );
+    this.inspector = new ElementInspector(
+      this.picker,
+      new ElementHighlighter(this.shadowHost.root),
+    );
 
     this.registry.register(new SelectTool());
     this.registry.register(new CalloutTool());
@@ -124,7 +139,8 @@ export class OverlayController {
 
     const toolContext: ToolContext = {
       doc: this.doc,
-      picker: this.picker,
+      inspectAt: (x, y) => this.inspector.moveTo(x, y),
+      pickedElement: () => this.inspector.current(),
       render: () => this.canvas.requestRender(),
       setDraft: (annotation) => this.setDraft(annotation),
       addAnnotation: (annotation) => this.addAnnotation(annotation),
@@ -172,6 +188,7 @@ export class OverlayController {
       onSave: () => void this.runSave(false),
       onSaveAs: () => void this.runSave(true),
       onClose: () => this.unmount(),
+      onMove: (position) => void saveToolbarPosition(position),
     });
   }
 
@@ -186,6 +203,7 @@ export class OverlayController {
     this.engine.attach();
     window.addEventListener('keydown', this.onKeyDown, true);
     this.updateCursor(this.doc.activeTool);
+    this.inspector.setEnabled(isAnchoredTool(this.doc.activeTool));
     this.toolbar.setUndoEnabled(false);
     this.toolbar.setRedoEnabled(false);
     // stay inert until the saved-session check resolves
@@ -206,6 +224,8 @@ export class OverlayController {
     this.labelEditor.close();
     this.sessionPrompt.close();
     this.engine.detach();
+    this.toolbar.destroy();
+    this.inspector.destroy();
     this.toast.destroy();
     this.canvas.unmount();
     this.shadowHost.unmount();
@@ -226,6 +246,8 @@ export class OverlayController {
     this.engine.detach();
     this.canvas.unmount();
     // drop the dead toolbar and panel so only the toast stays interactive
+    this.toolbar.destroy();
+    this.inspector.destroy();
     this.toolbar.el.remove();
     this.panel.el.remove();
     // the extension APIs are dead, so the session cannot be flushed
@@ -274,6 +296,16 @@ export class OverlayController {
       return;
     }
     if (e.altKey) return;
+
+    // arrow keys walk the DOM tree while an element-anchored tool inspects it
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      if (this.inspector.isEnabled() && this.inspector.hasTarget()) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.inspector.traverse(e.key === 'ArrowUp');
+      }
+      return;
+    }
 
     if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
@@ -331,6 +363,9 @@ export class OverlayController {
     this.doc.activeStrokeWidth = settings.defaultStrokeWidth;
     this.toolbar.setActiveColor(settings.defaultColor);
     this.toolbar.setActiveWidth(settings.defaultStrokeWidth);
+    if (settings.toolbarPosition) {
+      this.toolbar.restorePosition(settings.toolbarPosition);
+    }
   }
 
   /** Replace this session's annotations with a saved document's. */
@@ -358,6 +393,7 @@ export class OverlayController {
     this.toolbar.setActiveTool(tool);
     if (tool !== 'select') this.setSelection(null);
     this.updateCursor(tool);
+    this.inspector.setEnabled(isAnchoredTool(tool));
   }
 
   private updateCursor(tool: EditorTool): void {
@@ -489,6 +525,7 @@ export class OverlayController {
 
   /** Stage a new callout or text note: draft it, then open the label editor. */
   private placeChangeRequest(annotation: ChangeRequestAnnotation): void {
+    this.inspector.hide();
     this.setDraft(annotation);
     this.engine.setEnabled(false);
     const anchor = this.editorAnchorOf(annotation);
@@ -762,6 +799,11 @@ export class OverlayController {
       this.canvas.render();
     }
   }
+}
+
+/** Whether a tool anchors its annotations to a page element (callout, text). */
+function isAnchoredTool(tool: EditorTool): boolean {
+  return tool === 'callout' || tool === 'text';
 }
 
 /** Resolve after two animation frames, so a style change has painted. */

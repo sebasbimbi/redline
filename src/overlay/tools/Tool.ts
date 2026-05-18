@@ -7,12 +7,22 @@ import type {
   Geometry,
 } from '../../model/annotation';
 import type { RedlineDocument } from '../../model/document';
-import type { ElementPicker } from '../ElementPicker';
 
 /** Services the drawing engine exposes to the active tool. */
 export interface ToolContext {
   readonly doc: RedlineDocument;
-  readonly picker: ElementPicker;
+  /**
+   * Point the element inspector at viewport coordinates. The element-anchored
+   * tools call this on every pointer move (to highlight the target element)
+   * and again on pointer down (to lock the target in before reading it).
+   */
+  inspectAt(clientX: number, clientY: number): void;
+  /**
+   * The page element the inspector is locked onto, after any keyboard
+   * tree-traversal. The element-anchored tools read this on pointer down to
+   * anchor a new change request. Null when nothing is under the cursor.
+   */
+  pickedElement(): Element | null;
   /** Repaint the annotation canvas. */
   render(): void;
   /** Set or clear the in-progress preview annotation (a drag, before commit). */

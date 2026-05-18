@@ -8,15 +8,22 @@ import { captureMetadata } from '../../selector/captureMetadata';
 import { uid } from '../../platform/ids';
 
 /**
- * Click anywhere to drop a numbered marker anchored to the element under the
- * cursor. The label editor then opens for the requested change; the callout is
- * kept only if a non-empty label is saved.
+ * Click anywhere to drop a numbered marker anchored to the highlighted
+ * element. Moving the cursor highlights the element under it; the arrow keys
+ * walk up and down the DOM tree to retarget it. The label editor then opens
+ * for the requested change; the callout is kept only if a non-empty label is
+ * saved.
  */
 export class CalloutTool implements Tool {
   readonly id = 'callout' as const;
 
+  onPointerMove(ev: PointerEvent, ctx: ToolContext): void {
+    ctx.inspectAt(ev.clientX, ev.clientY);
+  }
+
   onPointerDown(ev: PointerEvent, ctx: ToolContext): void {
-    const target = ctx.picker.pickAt(ev.clientX, ev.clientY);
+    ctx.inspectAt(ev.clientX, ev.clientY);
+    const target = ctx.pickedElement();
     const annotation: ChangeRequestAnnotation = {
       id: uid(),
       createdAt: new Date().toISOString(),
