@@ -34,6 +34,7 @@ import { EllipseTool } from './tools/EllipseTool';
 import { ArrowTool } from './tools/ArrowTool';
 import { FreehandTool } from './tools/FreehandTool';
 import { HighlightTool } from './tools/HighlightTool';
+import { MeasureTool } from './tools/MeasureTool';
 import { ShadowHost } from '../ui/ShadowHost';
 import { Toolbar } from '../ui/Toolbar';
 import type { ToolDef } from '../ui/Toolbar';
@@ -87,6 +88,8 @@ const TOOL_DEFS: ToolDef[] = [
     description: 'Draw a freehand stroke. Visual emphasis, not a change request.' },
   { id: 'highlight', label: 'Highlight', icon: 'highlight', hotkey: 'H',
     description: 'Brush a translucent highlight over an area.' },
+  { id: 'measure', label: 'Measure', icon: 'measure', hotkey: 'M',
+    description: 'Measure a distance in pixels. Visual emphasis only.' },
 ];
 
 /** Single-key tool shortcuts. */
@@ -99,6 +102,7 @@ const HOTKEYS: Record<string, EditorTool> = {
   a: 'arrow',
   f: 'freehand',
   h: 'highlight',
+  m: 'measure',
 };
 
 /** The lifetime-scoped controller for one mounted overlay session. */
@@ -140,6 +144,7 @@ export class OverlayController {
     this.registry.register(new ArrowTool());
     this.registry.register(new FreehandTool());
     this.registry.register(new HighlightTool());
+    this.registry.register(new MeasureTool());
 
     const toolContext: ToolContext = {
       doc: this.doc,

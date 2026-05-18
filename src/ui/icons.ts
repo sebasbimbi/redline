@@ -53,6 +53,7 @@ export const ICONS = {
     '<rect x="1.8" y="3" width="12.4" height="10" rx="1.6"/>' +
       '<path d="M4.6 7.3L6.4 9.1 4.6 10.9M8 10.9H11.4"/>',
   ),
+  measure: svg('<path d="M2.5 8H13.5M2.5 5.2V10.8M13.5 5.2V10.8"/>'),
 } as const;
 
 export type IconName = keyof typeof ICONS;

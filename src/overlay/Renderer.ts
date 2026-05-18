@@ -2,7 +2,7 @@
 
 import { getStroke } from 'perfect-freehand';
 import type { Annotation } from '../model/annotation';
-import type { Point, Rect } from '../model/geometry';
+import { distance, type Point, type Rect } from '../model/geometry';
 
 const MARKER_RADIUS = 13;
 const MARKER_FONT =
@@ -33,6 +33,15 @@ export function renderAnnotation(
       break;
     case 'arrow':
       drawArrow(
+        ctx,
+        { x: g.from.x - sx, y: g.from.y - sy },
+        { x: g.to.x - sx, y: g.to.y - sy },
+        g.style.color,
+        g.style.width,
+      );
+      break;
+    case 'measure':
+      drawMeasure(
         ctx,
         { x: g.from.x - sx, y: g.from.y - sy },
         { x: g.to.x - sx, y: g.to.y - sy },
@@ -203,6 +212,61 @@ function drawArrow(
   );
   ctx.closePath();
   ctx.fill();
+  ctx.restore();
+}
+
+/** Draw a dimension line: a stroke with end ticks and a pixel-distance label. */
+function drawMeasure(
+  ctx: CanvasRenderingContext2D,
+  from: Point,
+  to: Point,
+  color: string,
+  width: number,
+): void {
+  const angle = Math.atan2(to.y - from.y, to.x - from.x);
+  const tick = 5 + width;
+  const px = Math.cos(angle + Math.PI / 2);
+  const py = Math.sin(angle + Math.PI / 2);
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = 'round';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+  ctx.shadowBlur = 3;
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(to.x, to.y);
+  ctx.moveTo(from.x - px * tick, from.y - py * tick);
+  ctx.lineTo(from.x + px * tick, from.y + py * tick);
+  ctx.moveTo(to.x - px * tick, to.y - py * tick);
+  ctx.lineTo(to.x + px * tick, to.y + py * tick);
+  ctx.stroke();
+  ctx.restore();
+  const label = `${Math.round(distance(from, to))} px`;
+  drawMeasureLabel(ctx, (from.x + to.x) / 2, (from.y + to.y) / 2, label, color);
+}
+
+/** Draw the measurement's pixel value on a small color tag. */
+function drawMeasureLabel(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  text: string,
+  color: string,
+): void {
+  ctx.save();
+  ctx.font = `600 12px ${TEXT_FONT_STACK}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const w = ctx.measureText(text).width + 12;
+  const h = 18;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+  ctx.shadowBlur = 4;
+  ctx.fillStyle = color;
+  ctx.fillRect(x - w / 2, y - h / 2, w, h);
+  ctx.shadowColor = 'transparent';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(text, x, y);
   ctx.restore();
 }
 

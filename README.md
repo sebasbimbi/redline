@@ -39,8 +39,9 @@ In `chrome://extensions` (or `arc://extensions`):
      one, the Up and Down arrow keys walk the DOM tree to target the exact
      element.
    - The **shapes** button opens **Rectangle** (R), **Ellipse** (E), **Arrow**
-     (A), **Freehand** (F), and **Highlight** (H). These are visual emphasis:
-     drawn on the screenshot, but they do not create changelog entries.
+     (A), **Freehand** (F), **Highlight** (H), and **Measure** (M), a
+     drag-to-measure ruler. These are visual emphasis: drawn on the
+     screenshot, but they do not create changelog entries.
    - **Select** (V) picks an annotation. Drag to move it, press Delete to
      remove it, double-click a callout or note to re-edit its label.
 4. The color and stroke-width buttons each open a picker. Undo and redo with

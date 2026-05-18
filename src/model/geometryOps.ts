@@ -38,6 +38,7 @@ export function translateGeometry(
       geometry.rect.y += dy;
       return;
     case 'arrow':
+    case 'measure':
       geometry.from.x += dx;
       geometry.from.y += dy;
       geometry.to.x += dx;
@@ -81,6 +82,7 @@ export function annotationBounds(annotation: Annotation): Rect {
     case 'highlight':
       return { x: g.rect.x, y: g.rect.y, w: g.rect.w, h: g.rect.h };
     case 'arrow':
+    case 'measure':
       return rectFromPoints(g.from, g.to);
     case 'freehand': {
       if (g.points.length === 0) return { x: 0, y: 0, w: 0, h: 0 };
@@ -141,6 +143,7 @@ export function hitTestAnnotation(annotation: Annotation, p: Point): boolean {
     case 'highlight':
       return inRect(p, g.rect, 5);
     case 'arrow':
+    case 'measure':
       return pointToSegment(p, g.from, g.to) <= HIT_SLOP;
     case 'freehand': {
       const pts = g.points;
@@ -175,6 +178,7 @@ export function annotationColor(annotation: Annotation): string {
     case 'rectangle':
     case 'ellipse':
     case 'arrow':
+    case 'measure':
     case 'freehand':
       return g.style.color;
     case 'highlight':

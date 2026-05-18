@@ -41,6 +41,19 @@ function calloutAnnotation(
   };
 }
 
+function measureAnnotation(
+  id: string,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): Annotation {
+  return {
+    id,
+    createdAt: '2026-05-17T00:00:00.000Z',
+    annotationClass: 'visual-emphasis',
+    geometry: { kind: 'measure', from, to, style: { ...STYLE } },
+  };
+}
+
 describe('rectFromPoints', () => {
   it('builds a rectangle from two corner points', () => {
     expect(rectFromPoints({ x: 10, y: 10 }, { x: 30, y: 40 })).toEqual({
@@ -186,5 +199,38 @@ describe('annotationColor', () => {
     expect(annotationColor(calloutAnnotation('c', { x: 0, y: 0 }))).toBe(
       '#0091ff',
     );
+  });
+});
+
+describe('measure geometry', () => {
+  it('translates both ends of a measure line', () => {
+    const g = {
+      kind: 'measure' as const,
+      from: { x: 0, y: 0 },
+      to: { x: 10, y: 10 },
+      style: { ...STYLE },
+    };
+    translateGeometry(g, 2, 3);
+    expect(g.from).toEqual({ x: 2, y: 3 });
+    expect(g.to).toEqual({ x: 12, y: 13 });
+  });
+
+  it('bounds a measure line across its two endpoints', () => {
+    const bounds = annotationBounds(
+      measureAnnotation('m', { x: 10, y: 40 }, { x: 30, y: 10 }),
+    );
+    expect(bounds).toEqual({ x: 10, y: 10, w: 20, h: 30 });
+  });
+
+  it('hits near the measure line and misses far from it', () => {
+    const m = measureAnnotation('m', { x: 0, y: 0 }, { x: 100, y: 0 });
+    expect(hitTestAnnotation(m, { x: 50, y: 2 })).toBe(true);
+    expect(hitTestAnnotation(m, { x: 50, y: 40 })).toBe(false);
+  });
+
+  it('reads the stroke color of a measure line', () => {
+    expect(
+      annotationColor(measureAnnotation('m', { x: 0, y: 0 }, { x: 1, y: 1 })),
+    ).toBe('#ff0000');
   });
 });

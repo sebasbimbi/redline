@@ -9,6 +9,7 @@ export type ToolId =
   | 'arrow'
   | 'freehand'
   | 'highlight'
+  | 'measure'
   | 'callout'
   | 'text';
 
@@ -28,6 +29,7 @@ export const TOOL_CLASS: Record<ToolId, AnnotationClass> = {
   arrow: 'visual-emphasis',
   freehand: 'visual-emphasis',
   highlight: 'visual-emphasis',
+  measure: 'visual-emphasis',
   callout: 'change-request',
   text: 'change-request',
 };
@@ -71,6 +73,12 @@ export interface HighlightShape {
   rect: Rect;
   color: string;
 }
+export interface MeasureShape {
+  kind: 'measure';
+  from: Point;
+  to: Point;
+  style: StrokeStyle;
+}
 export interface CalloutShape {
   kind: 'callout';
   /** The point the numbered marker pins to, in page coordinates. */
@@ -90,6 +98,7 @@ export type Geometry =
   | ArrowShape
   | FreehandShape
   | HighlightShape
+  | MeasureShape
   | CalloutShape
   | TextShape;
 
@@ -150,7 +159,8 @@ export interface VisualEmphasisAnnotation extends AnnotationBase {
     | EllipseShape
     | ArrowShape
     | FreehandShape
-    | HighlightShape;
+    | HighlightShape
+    | MeasureShape;
 }
 
 export interface ChangeRequestAnnotation extends AnnotationBase {
