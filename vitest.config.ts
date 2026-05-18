@@ -8,5 +8,7 @@ export default defineConfig({
     // opt into jsdom with their own `// @vitest-environment jsdom` docblock.
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // Polyfills CSS.escape, which jsdom omits and the selector engine needs.
+    setupFiles: ['./vitest.setup.ts'],
   },
 });

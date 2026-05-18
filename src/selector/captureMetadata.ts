@@ -2,7 +2,7 @@
 
 import type { ElementMetadata } from '../model/annotation';
 import type { Rect } from '../model/geometry';
-import { generateSelector, selectorPath } from './generateSelector';
+import { generateSelector, selectorPath, isStableClass } from './generateSelector';
 import { generateXPath } from './xpath';
 
 const LANDMARK_SELECTOR =
@@ -131,7 +131,7 @@ function parentContext(el: Element): string | null {
   if (!parent || parent === document.body) return null;
   const tag = parent.tagName.toLowerCase();
   if (parent.id) return `${tag}#${parent.id}`;
-  const cls = Array.from(parent.classList)[0];
+  const cls = Array.from(parent.classList).find(isStableClass);
   return cls ? `${tag}.${cls}` : tag;
 }
 
