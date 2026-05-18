@@ -110,14 +110,15 @@ pnpm icons      # regenerate the extension icons
 
 ## Status
 
-Version 1.1.1. Seven annotation tools (callout, text, rectangle, ellipse,
-arrow, freehand, highlight), select and move, undo and redo, an annotation
-panel, per-page session persistence, popup settings, viewport and full-page
-capture, clipboard and folder-save export, and the `/redline` command. The
+Version 1.2.0. Eight annotation tools (callout, text, rectangle, ellipse,
+arrow, freehand, highlight, measure), select and move, undo and redo, an
+annotation panel, per-page session persistence, popup settings, viewport and
+full-page capture, clipboard and folder-save export, multi-page batch export,
+and the `/redline` command, which the toolbar can install into a project. The
 toolbar is draggable and groups its shape, color, and width pickers into
-popovers. The overlay pierces open shadow DOM when picking elements and
-recovers cleanly if the extension is reloaded. The export and model logic is
-covered by a vitest test suite.
+popovers, and the color picker takes a custom color. The overlay pierces open
+shadow DOM when picking elements and recovers cleanly if the extension is
+reloaded. It is covered by a vitest test suite.
 
 ## License
 
