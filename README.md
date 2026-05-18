@@ -71,11 +71,12 @@ cp claude-command/redline.md /path/to/your-project/.claude/commands/
 
 Then, each time:
 
-1. In Redline, annotate the page and click **Save**. Point the folder picker
-   at a `.redline/` folder inside the project you are working on.
+1. In Redline, annotate a page and click **Save**, pointing the folder picker
+   at a `.redline/` folder in the project. Repeat for as many pages as you
+   like; each page is saved as its own export.
 2. In Claude Code, inside that project, run `/redline`.
-3. Claude Code reads the newest export pair, applies each change to your
-   source, and reports on every item.
+3. Claude Code applies every pending export in the folder, page by page,
+   reports on each item, and moves the applied exports into `.redline/applied/`.
 
 ## Permissions
 
