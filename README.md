@@ -30,18 +30,21 @@ In `chrome://extensions` (or `arc://extensions`):
    Store).
 2. Press Cmd+Shift+M (Mac) or Ctrl+Shift+M, or click the Redline icon and
    choose Activate. The icon's popup also sets your default color and stroke,
-   and links to the browser's shortcut settings.
-3. Pick a tool from the toolbar (or press its shortcut key):
+   and links to the browser's shortcut settings. The toolbar can be dragged
+   anywhere on the page.
+3. Pick a tool from the toolbar, or press its shortcut key:
    - **Callout** (C) drops a numbered marker on an element and opens a box for
      the change you want. **Text** (T) places an editable note. Both are
-     element-anchored and appear in the exported changelog.
-   - **Rectangle** (R), **Ellipse** (E), **Arrow** (A), **Freehand** (F), and
-     **Highlight** (H) are visual emphasis: drawn on the screenshot, but they
-     do not create changelog entries.
+     element-anchored and appear in the exported changelog. While you place
+     one, the Up and Down arrow keys walk the DOM tree to target the exact
+     element.
+   - The **shapes** button opens **Rectangle** (R), **Ellipse** (E), **Arrow**
+     (A), **Freehand** (F), and **Highlight** (H). These are visual emphasis:
+     drawn on the screenshot, but they do not create changelog entries.
    - **Select** (V) picks an annotation. Drag to move it, press Delete to
      remove it, double-click a callout or note to re-edit its label.
-4. Undo and redo with the toolbar arrows or Cmd/Ctrl+Z. Pick a color and
-   stroke width from the toolbar; Clear removes everything.
+4. The color and stroke-width buttons each open a picker. Undo and redo with
+   the toolbar arrows or Cmd/Ctrl+Z; Clear removes every annotation.
 5. The panel button on the toolbar opens a list of every annotation. Click a
    row to jump to it, the pencil to edit a label, the cross to delete it.
    Annotations are saved per page: reopen Redline on the same page and it
@@ -74,24 +77,42 @@ Then, each time:
 3. Claude Code reads the newest export pair, applies each change to your
    source, and reports on every item.
 
+## Permissions
+
+Redline requests only what it needs, and all of it stays on your machine:
+
+- **activeTab** and **scripting** let Redline inject its annotation overlay
+  into the page you activate it on. It injects nothing until you activate it.
+- **tabs** lets Redline capture the visible tab as the screenshot.
+- **storage** keeps your default color, stroke width, toolbar position, and
+  per-page annotations.
+- The `http` and `https` host permissions let you activate Redline on any
+  normal site.
+
+There is no server and no telemetry. Nothing you annotate or export leaves
+your computer.
+
 ## Development
 
 ```
 pnpm dev        # WXT dev server with live reload
 pnpm build      # production build into output/chrome-mv3/
 pnpm compile    # type-check only
+pnpm test       # run the vitest suite
 pnpm zip        # packaged .zip for the Chrome Web Store
 pnpm icons      # regenerate the extension icons
 ```
 
 ## Status
 
-Version 1.0, feature complete. Seven annotation tools (callout, text,
-rectangle, ellipse, arrow, freehand, highlight), select and move, undo and
-redo, an annotation panel, per-page session persistence, popup settings,
-viewport and full-page capture, clipboard and folder-save export, and the
-`/redline` command. The overlay pierces open shadow DOM when picking elements
-and recovers cleanly if the extension is reloaded.
+Version 1.1.1. Seven annotation tools (callout, text, rectangle, ellipse,
+arrow, freehand, highlight), select and move, undo and redo, an annotation
+panel, per-page session persistence, popup settings, viewport and full-page
+capture, clipboard and folder-save export, and the `/redline` command. The
+toolbar is draggable and groups its shape, color, and width pickers into
+popovers. The overlay pierces open shadow DOM when picking elements and
+recovers cleanly if the extension is reloaded. The export and model logic is
+covered by a vitest test suite.
 
 ## License
 
