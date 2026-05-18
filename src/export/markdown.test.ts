@@ -86,6 +86,7 @@ describe('buildMarkdown', () => {
     expect(md).toContain('| Viewport | 1280x800 @ 2x |');
     expect(md).toContain('| Screenshot | shot.png |');
     expect(md).toContain('## How to apply');
+    expect(md).toContain('hash their class names');
   });
 
   it('reports no labeled changes for an empty document', () => {

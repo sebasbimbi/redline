@@ -42,10 +42,16 @@ export function buildMarkdown(
   out.push('');
   out.push('1. Open the screenshot to see each numbered marker in context.');
   out.push(
-    '2. For each change, locate the element: try the Selector first; if it no',
+    '2. For each change, find the element in your source code. Modern sites',
   );
   out.push(
-    '   longer matches, fall back to the XPath, then the Element context.',
+    '   hash their class names (Tailwind, CSS modules, styled-components), so',
+  );
+  out.push(
+    '   the Selector may not appear verbatim in the source. Fall back to the',
+  );
+  out.push(
+    '   Element context, current text, id, and data attributes to locate it.',
   );
   out.push('3. Make the change. Keep it minimal and scoped to the request.');
   out.push('4. Report per item: Done / Skipped (reason) / Needs clarification.');
@@ -84,7 +90,7 @@ export function buildMarkdown(
 
 function appendElement(out: string[], el: ElementMetadata | null): void {
   if (!el) {
-    out.push('- Element: (no element under the marker — see the screenshot)');
+    out.push('- Element: (no element under the marker, see the screenshot)');
     return;
   }
   out.push(`- Selector: \`${el.selector}\``);
