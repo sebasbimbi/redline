@@ -49,6 +49,10 @@ export const ICONS = {
     '<rect x="3.4" y="2.3" width="9.2" height="11.4" rx="1.3"/>' +
       '<path d="M8 5.2V10.8M6.2 7L8 5.2 9.8 7M6.2 9L8 10.8 9.8 9"/>',
   ),
+  command: svg(
+    '<rect x="1.8" y="3" width="12.4" height="10" rx="1.6"/>' +
+      '<path d="M4.6 7.3L6.4 9.1 4.6 10.9M8 10.9H11.4"/>',
+  ),
 } as const;
 
 export type IconName = keyof typeof ICONS;

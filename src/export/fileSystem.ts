@@ -1,6 +1,7 @@
 /** Folder-save export via the File System Access API. */
 
 import { loadDirectoryHandle, saveDirectoryHandle } from '../platform/idb';
+import redlineCommandSource from '../../claude-command/redline.md?raw';
 
 export type DirectoryResult =
   | { status: 'ok'; dir: FileSystemDirectoryHandle }
@@ -11,6 +12,12 @@ export interface WriteResult {
   ok: boolean;
   error?: string;
 }
+
+/** Outcome of installing the /redline command into a project. */
+export type InstallResult =
+  | { status: 'ok'; projectName: string }
+  | { status: 'cancelled' }
+  | { status: 'error'; message: string };
 
 /**
  * Resolve the export directory: reuse the remembered folder when permission is
@@ -75,6 +82,37 @@ export async function writeExportFiles(
     return { ok: true };
   } catch (err) {
     return { ok: false, error: errorText(err) };
+  }
+}
+
+/**
+ * Install the /redline slash command into a project. Prompts for the project
+ * folder, then writes the command into its `.claude/commands/` directory,
+ * creating `.claude/commands/` if it does not exist.
+ */
+export async function installRedlineCommand(): Promise<InstallResult> {
+  let root: FileSystemDirectoryHandle;
+  try {
+    root = await window.showDirectoryPicker({ mode: 'readwrite' });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      return { status: 'cancelled' };
+    }
+    return { status: 'error', message: errorText(err) };
+  }
+  try {
+    const claude = await root.getDirectoryHandle('.claude', { create: true });
+    const commands = await claude.getDirectoryHandle('commands', {
+      create: true,
+    });
+    await writeFile(
+      commands,
+      'redline.md',
+      new Blob([redlineCommandSource], { type: 'text/markdown' }),
+    );
+    return { status: 'ok', projectName: root.name };
+  } catch (err) {
+    return { status: 'error', message: errorText(err) };
   }
 }
 

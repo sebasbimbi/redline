@@ -33,6 +33,7 @@ export interface ToolbarOptions {
   onCopy: () => void;
   onSave: () => void;
   onSaveAs: () => void;
+  onInstallCommand: () => void;
   onClose: () => void;
   /** Persist the toolbar position after the user drags it. */
   onMove: (position: ToolbarPosition) => void;
@@ -295,6 +296,16 @@ export class Toolbar {
       opts.onClose();
     });
 
+    const installBtn = iconButton(
+      ICONS.command,
+      'Install the /redline command into a project, so Claude Code can ' +
+        'apply Redline exports there.',
+    );
+    installBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      opts.onInstallCommand();
+    });
+
     this.el.append(
       wordmark,
       divider(),
@@ -304,6 +315,7 @@ export class Toolbar {
       divider(),
       historyGroup,
       divider(),
+      installBtn,
       this.fullPageBtn,
       this.copyBtn,
       saveGroup,

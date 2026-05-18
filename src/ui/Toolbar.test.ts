@@ -32,6 +32,7 @@ function setup(overrides: Partial<ToolbarOptions> = {}) {
   const onSelectTool = vi.fn();
   const onSelectColor = vi.fn();
   const onSelectWidth = vi.fn();
+  const onInstallCommand = vi.fn();
   const options: ToolbarOptions = {
     tools: TOOLS,
     colors: COLORS,
@@ -50,6 +51,7 @@ function setup(overrides: Partial<ToolbarOptions> = {}) {
     onCopy: vi.fn(),
     onSave: vi.fn(),
     onSaveAs: vi.fn(),
+    onInstallCommand,
     onClose: vi.fn(),
     onMove: vi.fn(),
     ...overrides,
@@ -57,7 +59,13 @@ function setup(overrides: Partial<ToolbarOptions> = {}) {
   const toolbar = new Toolbar(options);
   current = toolbar;
   document.body.appendChild(toolbar.el);
-  return { toolbar, onSelectTool, onSelectColor, onSelectWidth };
+  return {
+    toolbar,
+    onSelectTool,
+    onSelectColor,
+    onSelectWidth,
+    onInstallCommand,
+  };
 }
 
 afterEach(() => {
@@ -152,5 +160,11 @@ describe('Toolbar', () => {
     expect(undo.disabled).toBe(true);
     toolbar.setUndoEnabled(true);
     expect(undo.disabled).toBe(false);
+  });
+
+  it('reports the install-command action', () => {
+    const { toolbar, onInstallCommand } = setup();
+    byLabel(toolbar, 'Install').click();
+    expect(onInstallCommand).toHaveBeenCalled();
   });
 });

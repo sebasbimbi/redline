@@ -62,8 +62,11 @@ In `chrome://extensions` (or `arc://extensions`):
 
 Redline ships a slash command so Claude Code can apply an export directly.
 
-One-time setup, per project: copy the command file into the project's
-`.claude/commands/` folder.
+One-time setup, per project: in the Redline toolbar, click the install
+command button (the terminal icon) and pick your project folder. Redline
+writes the command into `.claude/commands/` for you.
+
+By hand instead, if you prefer:
 
 ```
 cp claude-command/redline.md /path/to/your-project/.claude/commands/

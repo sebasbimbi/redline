@@ -50,7 +50,11 @@ import { captureFullPage } from '../capture/fullPage';
 import { buildMarkdown } from '../export/markdown';
 import { exportSlug } from '../export/filename';
 import { copyToClipboard, dataUrlToBlob } from '../export/clipboard';
-import { resolveExportDirectory, writeExportFiles } from '../export/fileSystem';
+import {
+  installRedlineCommand,
+  resolveExportDirectory,
+  writeExportFiles,
+} from '../export/fileSystem';
 import { supportsFileSystemAccess } from '../platform/capabilities';
 import { isExtensionContextValid } from '../platform/extensionContext';
 
@@ -187,6 +191,7 @@ export class OverlayController {
       onCopy: () => void this.runCopy(),
       onSave: () => void this.runSave(false),
       onSaveAs: () => void this.runSave(true),
+      onInstallCommand: () => void this.runInstallCommand(),
       onClose: () => this.unmount(),
       onMove: (position) => void saveToolbarPosition(position),
     });
@@ -724,6 +729,29 @@ export class OverlayController {
       this.busy = false;
       this.toolbar.setBusy(false);
     }
+  }
+
+  /** Install the /redline slash command into a project the user picks. */
+  private async runInstallCommand(): Promise<void> {
+    if (this.busy) return;
+    if (!supportsFileSystemAccess()) {
+      this.toast.show(
+        'Installing the command needs a secure (https) page. Copy ' +
+          'claude-command/redline.md into .claude/commands/ by hand instead.',
+        { tone: 'error' },
+      );
+      return;
+    }
+    const result = await installRedlineCommand();
+    if (result.status === 'cancelled') return;
+    if (result.status === 'error') {
+      this.toast.show(result.message, { tone: 'error' });
+      return;
+    }
+    this.toast.show(
+      `Installed the /redline command into ${result.projectName}/.claude/` +
+        'commands/. Run /redline in Claude Code there.',
+    );
   }
 
   /**
