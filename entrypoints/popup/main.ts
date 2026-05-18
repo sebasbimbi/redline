@@ -7,7 +7,10 @@ import {
   isCapturableUrl,
 } from '../../src/platform/constants';
 import { loadSettings, saveSettings } from '../../src/platform/settings';
-import type { ActivateRequest } from '../../src/platform/messages';
+import type {
+  ActivateRequest,
+  ActivateResponse,
+} from '../../src/platform/messages';
 
 const WIDTH_NAMES = ['Thin', 'Medium', 'Thick'];
 
@@ -44,15 +47,15 @@ async function buildActivate(): Promise<HTMLElement> {
     const button = document.createElement('button');
     button.className = 'activate';
     button.textContent = 'Activate on this page';
-    button.addEventListener('click', () => {
-      const request: ActivateRequest = { type: 'activate' };
-      void browser.runtime.sendMessage(request);
-      window.close();
-    });
-    block.append(
-      button,
-      el('div', 'hint', 'Or press Ctrl+Shift+M (Cmd+Shift+M on Mac).'),
+    const hint = el(
+      'div',
+      'hint',
+      'Or press Ctrl+Shift+M (Cmd+Shift+M on Mac).',
     );
+    button.addEventListener('click', () => {
+      void activate(button, hint);
+    });
+    block.append(button, hint);
   } else {
     block.append(
       el(
@@ -64,6 +67,44 @@ async function buildActivate(): Promise<HTMLElement> {
     );
   }
   return block;
+}
+
+/**
+ * Send the activate request, then close the popup only after the service
+ * worker confirms the overlay is injected.
+ *
+ * This is the fix for "the first click does nothing, the second works." A
+ * Manifest V3 service worker sleeps when idle, so the first activate has to
+ * wake it. The old code closed the popup the instant the message was sent;
+ * tearing the sender down mid-wake dropped the message and the overlay
+ * never mounted. The dropped attempt still woke the worker, so the next
+ * click hit a warm worker and seemed to work "on the second try." Awaiting
+ * the response keeps the popup, and the message channel, alive until the
+ * overlay is actually mounted.
+ */
+async function activate(
+  button: HTMLButtonElement,
+  hint: HTMLElement,
+): Promise<void> {
+  button.disabled = true;
+  button.textContent = 'Activating...';
+  hint.classList.remove('error');
+  try {
+    const request: ActivateRequest = { type: 'activate' };
+    const response = (await browser.runtime.sendMessage(request)) as
+      | ActivateResponse
+      | undefined;
+    if (response && !response.ok) {
+      throw new Error(response.error || 'Redline could not start.');
+    }
+    window.close();
+  } catch (err) {
+    button.disabled = false;
+    button.textContent = 'Activate on this page';
+    hint.textContent =
+      err instanceof Error ? err.message : 'Redline could not start.';
+    hint.classList.add('error');
+  }
 }
 
 /** Default color, default stroke width, and the keyboard-shortcut link. */

@@ -60,10 +60,20 @@ body {
 .activate:hover {
   background: #2aa1ff;
 }
+.activate:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.activate:disabled:hover {
+  background: #0091ff;
+}
 
 .hint {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.4);
+}
+.hint.error {
+  color: #ff6b6b;
 }
 
 .msg {
