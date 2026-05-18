@@ -76,6 +76,14 @@ export function renderAnnotation(
       );
       break;
     }
+    case 'textedit': {
+      const numberLabel =
+        annotation.annotationClass === 'change-request'
+          ? String(annotation.number)
+          : '';
+      drawTextEdit(ctx, shiftRect(g.box, sx, sy), g.color, numberLabel);
+      break;
+    }
   }
 }
 
@@ -389,4 +397,32 @@ function drawElementOutline(
   ctx.setLineDash([5, 3]);
   ctx.strokeRect(x, y, w, h);
   ctx.restore();
+}
+
+/**
+ * Draw an in-place text edit: a faint wash and a solid outline on the edited
+ * element box, plus the numbered marker pinned to its top-left corner. The
+ * solid box reads as "this content changed", distinct from the callout's
+ * dashed "I am pointing at this element" outline.
+ */
+function drawTextEdit(
+  ctx: CanvasRenderingContext2D,
+  box: Rect,
+  color: string,
+  numberLabel: string,
+): void {
+  if (box.w > 0 && box.h > 0) {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.1;
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+    ctx.shadowBlur = 3;
+    ctx.strokeRect(box.x, box.y, box.w, box.h);
+    ctx.restore();
+  }
+  drawCallout(ctx, box.x, box.y, color, numberLabel);
 }

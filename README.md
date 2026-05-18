@@ -38,6 +38,10 @@ In `chrome://extensions` (or `arc://extensions`):
      element-anchored and appear in the exported changelog. While you place
      one, the Up and Down arrow keys walk the DOM tree to target the exact
      element.
+   - **Edit text** (D) rewrites an element's text in place. Click the text,
+     retype it, and save with Cmd/Ctrl+Enter or by clicking away. The page
+     shows the new text, and the changelog records the exact old text and new
+     text, so an AI assistant can apply it by a literal string match.
    - The **shapes** button opens **Rectangle** (R), **Ellipse** (E), **Arrow**
      (A), **Freehand** (F), **Highlight** (H), and **Measure** (M), a
      drag-to-measure ruler. These are visual emphasis: drawn on the
@@ -110,15 +114,17 @@ pnpm icons      # regenerate the extension icons
 
 ## Status
 
-Version 1.2.0. Eight annotation tools (callout, text, rectangle, ellipse,
-arrow, freehand, highlight, measure), select and move, undo and redo, an
-annotation panel, per-page session persistence, popup settings, viewport and
-full-page capture, clipboard and folder-save export, multi-page batch export,
-and the `/redline` command, which the toolbar can install into a project. The
-toolbar is draggable and groups its shape, color, and width pickers into
-popovers, and the color picker takes a custom color. The overlay pierces open
-shadow DOM when picking elements and recovers cleanly if the extension is
-reloaded. It is covered by a vitest test suite.
+Version 1.3.0. Nine annotation tools (callout, text, edit text, rectangle,
+ellipse, arrow, freehand, highlight, measure), select and move, undo and redo,
+an annotation panel, per-page session persistence, popup settings, viewport
+and full-page capture, clipboard and folder-save export, multi-page batch
+export, and the `/redline` command, which the toolbar can install into a
+project. The edit-text tool rewrites a page element's text in place and
+records the verbatim before and after, the most precise change request
+Redline can produce. The toolbar is draggable and groups its shape, color, and
+width pickers into popovers, and the color picker takes a custom color. The
+overlay pierces open shadow DOM when picking elements and recovers cleanly if
+the extension is reloaded. It is covered by a vitest test suite.
 
 ## License
 

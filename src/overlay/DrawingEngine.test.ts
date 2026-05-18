@@ -35,6 +35,7 @@ function makeContext(doc: RedlineDocument): ToolContext {
     setDraft: () => {},
     addAnnotation: () => {},
     placeChangeRequest: () => {},
+    beginTextEdit: () => {},
     recordMove: () => {},
     deleteAnnotation: () => {},
     editLabel: () => {},

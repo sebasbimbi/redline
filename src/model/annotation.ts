@@ -11,7 +11,8 @@ export type ToolId =
   | 'highlight'
   | 'measure'
   | 'callout'
-  | 'text';
+  | 'text'
+  | 'textedit';
 
 export type AnnotationClass = 'visual-emphasis' | 'change-request';
 
@@ -32,6 +33,7 @@ export const TOOL_CLASS: Record<ToolId, AnnotationClass> = {
   measure: 'visual-emphasis',
   callout: 'change-request',
   text: 'change-request',
+  textedit: 'change-request',
 };
 
 /** Stroke styling shared by the shape tools. */
@@ -92,6 +94,26 @@ export interface TextShape {
   color: string;
 }
 
+/**
+ * An in-place text edit. The user rewrote a page element's text directly on
+ * the page; `oldText` and `newText` are the verbatim before and after, and are
+ * the heart of the change request. `box` is the element's bounding box, which
+ * carries the numbered marker and the change accent.
+ */
+export interface TextEditShape {
+  kind: 'textedit';
+  /** The edited element's bounding box, page coordinates. */
+  box: Rect;
+  /** Marker and accent color. */
+  color: string;
+  /** The element's text content before the edit, verbatim. */
+  oldText: string;
+  /** The element's text content after the edit, verbatim. */
+  newText: string;
+  /** True when the element held child elements (inline markup) to preserve. */
+  hasInlineMarkup: boolean;
+}
+
 export type Geometry =
   | RectangleShape
   | EllipseShape
@@ -100,7 +122,8 @@ export type Geometry =
   | HighlightShape
   | MeasureShape
   | CalloutShape
-  | TextShape;
+  | TextShape
+  | TextEditShape;
 
 // --- Rich element metadata -------------------------------------------------
 
@@ -165,7 +188,7 @@ export interface VisualEmphasisAnnotation extends AnnotationBase {
 
 export interface ChangeRequestAnnotation extends AnnotationBase {
   annotationClass: 'change-request';
-  geometry: CalloutShape | TextShape;
+  geometry: CalloutShape | TextShape | TextEditShape;
   /** 1-based; resequenced on every add/delete so numbers stay contiguous. */
   number: number;
   /** The requested change. Empty until the user types a label. */

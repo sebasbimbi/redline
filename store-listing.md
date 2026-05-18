@@ -25,7 +25,7 @@ Redline turns a webpage into a precise change request.
 
 You spot something to fix on a live site: a heading that should be bigger, a button in the wrong place, spacing that is off. Redline lets you mark it on the page and hand an exact, structured request to your AI coding assistant.
 
-Activate Redline on any page. Drop a numbered callout on the element you want changed and describe the change. Add boxes, arrows, and highlights for visual context. Then export. Redline captures an annotated screenshot and writes a markdown changelog where every numbered change is anchored to a precise DOM element, with its CSS selector, XPath, tag, classes, ARIA role, text, and position.
+Activate Redline on any page. Drop a numbered callout on the element you want changed and describe the change. Or rewrite a heading or label directly on the page with the edit-text tool. Add boxes, arrows, and highlights for visual context. Then export. Redline captures an annotated screenshot and writes a markdown changelog where every numbered change is anchored to a precise DOM element, with its CSS selector, XPath, tag, classes, ARIA role, text, and position.
 
 That structured export is the point. A vague "make the header better" gives an AI nothing to act on. Redline gives it an address for every change.
 
@@ -34,6 +34,7 @@ Redline is built for the Claude Code workflow. It ships a /redline slash command
 How it works:
 - Activate with a keyboard shortcut or the toolbar icon.
 - Callout and Text place numbered, element-anchored change requests.
+- Edit text rewrites an element's text in place; the export records the exact old text and new text.
 - Rectangle, Ellipse, Arrow, Freehand, and Highlight add visual emphasis.
 - Capture the visible area, or stitch the whole scrolling page.
 - Export to the clipboard, or save the screenshot and changelog into a project folder.

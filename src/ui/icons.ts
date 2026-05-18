@@ -54,6 +54,10 @@ export const ICONS = {
       '<path d="M4.6 7.3L6.4 9.1 4.6 10.9M8 10.9H11.4"/>',
   ),
   measure: svg('<path d="M2.5 8H13.5M2.5 5.2V10.8M13.5 5.2V10.8"/>'),
+  textedit: svg(
+    '<path d="M2.6 3.7H13.4M2.6 7H9.4M2.6 10.3H7.2"/>' +
+      '<path d="M13.6 8.2L11.1 13.9 9 12.5 11.5 6.8Z"/>',
+  ),
 } as const;
 
 export type IconName = keyof typeof ICONS;

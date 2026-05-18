@@ -37,6 +37,7 @@ export class SelectTool implements Tool {
     const now = Date.now();
     const isDoubleClick =
       hit.annotationClass === 'change-request' &&
+      hit.geometry.kind !== 'textedit' &&
       this.lastClick.id === hit.id &&
       now - this.lastClick.time < DOUBLE_CLICK_MS;
     this.lastClick = { time: now, id: hit.id };
@@ -45,6 +46,8 @@ export class SelectTool implements Tool {
       ctx.editLabel(hit.id);
       return;
     }
+    // a text edit is pinned to its element: selectable, but not draggable
+    if (hit.geometry.kind === 'textedit') return;
     this.drag = {
       id: hit.id,
       before: cloneGeometry(hit.geometry),

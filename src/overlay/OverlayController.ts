@@ -9,7 +9,7 @@ import type {
 import { isChangeRequest } from '../model/annotation';
 import type { RedlineDocument } from '../model/document';
 import { createDocument, resequence } from '../model/document';
-import { pageToClient } from '../model/geometry';
+import { pageToClient, type Rect } from '../model/geometry';
 import { annotationBounds } from '../model/geometryOps';
 import { AnnotationCanvas } from './AnnotationCanvas';
 import { ElementPicker } from './ElementPicker';
@@ -35,6 +35,7 @@ import { ArrowTool } from './tools/ArrowTool';
 import { FreehandTool } from './tools/FreehandTool';
 import { HighlightTool } from './tools/HighlightTool';
 import { MeasureTool } from './tools/MeasureTool';
+import { TextEditTool } from './tools/TextEditTool';
 import { ShadowHost } from '../ui/ShadowHost';
 import { Toolbar } from '../ui/Toolbar';
 import type { ToolDef } from '../ui/Toolbar';
@@ -42,6 +43,7 @@ import { ElementHighlighter } from '../ui/ElementHighlighter';
 import { SidePanel } from '../ui/SidePanel';
 import { SessionPrompt } from '../ui/SessionPrompt';
 import { LabelEditor } from '../ui/LabelEditor';
+import { InlineTextEditor } from '../ui/InlineTextEditor';
 import { Toast } from '../ui/Toast';
 import { COLORS, STROKE_WIDTHS } from '../platform/constants';
 import { loadSettings, saveToolbarPosition } from '../platform/settings';
@@ -70,6 +72,13 @@ interface ExportArtifacts {
   slug: string;
 }
 
+/** A live text edit: the page element, its original markup, and the new text. */
+interface TextEditEntry {
+  element: HTMLElement;
+  originalHTML: string;
+  newText: string;
+}
+
 /** Tools shown in the toolbar, in order, with their single-key shortcuts. */
 const TOOL_DEFS: ToolDef[] = [
   { id: 'select', label: 'Select & move', icon: 'select', hotkey: 'V',
@@ -78,6 +87,8 @@ const TOOL_DEFS: ToolDef[] = [
     description: 'Drop a numbered marker on an element, then describe the change.' },
   { id: 'text', label: 'Text note', icon: 'text', hotkey: 'T',
     description: 'Place an editable note anchored to an element.' },
+  { id: 'textedit', label: 'Edit text', icon: 'textedit', hotkey: 'D',
+    description: 'Rewrite a text element on the page; saved as old text to new text.' },
   { id: 'rectangle', label: 'Rectangle', icon: 'rectangle', hotkey: 'R',
     description: 'Draw a rectangle. Visual emphasis, not a change request.' },
   { id: 'ellipse', label: 'Ellipse', icon: 'ellipse', hotkey: 'E',
@@ -97,6 +108,7 @@ const HOTKEYS: Record<string, EditorTool> = {
   v: 'select',
   c: 'callout',
   t: 'text',
+  d: 'textedit',
   r: 'rectangle',
   e: 'ellipse',
   a: 'arrow',
@@ -112,6 +124,7 @@ export class OverlayController {
   private readonly shadowHost = new ShadowHost();
   private readonly toast = new Toast(this.shadowHost.root);
   private readonly labelEditor = new LabelEditor(this.shadowHost.root);
+  private readonly inlineEditor = new InlineTextEditor();
   private readonly sessionPrompt = new SessionPrompt(this.shadowHost.root);
   private readonly registry = new ToolRegistry();
   private readonly undo = new UndoStack();
@@ -125,6 +138,11 @@ export class OverlayController {
   private busy = false;
   private fullPageMode = false;
   private selectedId: string | null = null;
+  /** Live in-place text edits, keyed by annotation id. */
+  private readonly textEdits = new Map<string, TextEditEntry>();
+  /** An edit open in the inline editor but not yet committed. */
+  private pendingEdit: { element: HTMLElement; originalHTML: string } | null =
+    null;
   private contextTimer = 0;
 
   constructor(private readonly opts: OverlayControllerOptions) {
@@ -145,6 +163,7 @@ export class OverlayController {
     this.registry.register(new FreehandTool());
     this.registry.register(new HighlightTool());
     this.registry.register(new MeasureTool());
+    this.registry.register(new TextEditTool());
 
     const toolContext: ToolContext = {
       doc: this.doc,
@@ -154,6 +173,8 @@ export class OverlayController {
       setDraft: (annotation) => this.setDraft(annotation),
       addAnnotation: (annotation) => this.addAnnotation(annotation),
       placeChangeRequest: (annotation) => this.placeChangeRequest(annotation),
+      beginTextEdit: (annotation, element) =>
+        this.beginTextEdit(annotation, element),
       recordMove: (id, before, after) => this.recordMove(id, before, after),
       deleteAnnotation: (id) => this.removeAnnotation(id),
       editLabel: (id) => this.editLabel(id),
@@ -233,6 +254,8 @@ export class OverlayController {
     window.removeEventListener('keydown', this.onKeyDown, true);
     this.labelEditor.close();
     this.sessionPrompt.close();
+    this.inlineEditor.close();
+    this.revertAllTextEdits();
     this.engine.detach();
     this.toolbar.destroy();
     this.inspector.destroy();
@@ -253,6 +276,8 @@ export class OverlayController {
     window.removeEventListener('keydown', this.onKeyDown, true);
     this.labelEditor.close();
     this.sessionPrompt.close();
+    this.inlineEditor.close();
+    this.revertAllTextEdits();
     this.engine.detach();
     this.canvas.unmount();
     // drop the dead toolbar and panel so only the toast stays interactive
@@ -284,6 +309,8 @@ export class OverlayController {
     if (e.key === 'Escape') {
       // the label editor handles its own Escape and stops propagation
       if (this.labelEditor.isOpen) return;
+      // a text edit in progress takes Escape to cancel itself
+      if (this.inlineEditor.isOpen) return;
       // an open picker popover takes Escape before the overlay closes
       if (this.toolbar.closeOpenPopover()) {
         e.preventDefault();
@@ -293,8 +320,8 @@ export class OverlayController {
       this.unmount();
       return;
     }
-    // while the editor is open it owns the keyboard (undo, hotkeys, etc.)
-    if (this.labelEditor.isOpen) return;
+    // while an editor is open it owns the keyboard (undo, hotkeys, etc.)
+    if (this.labelEditor.isOpen || this.inlineEditor.isOpen) return;
 
     if (e.metaKey || e.ctrlKey) {
       const key = e.key.toLowerCase();
@@ -393,6 +420,7 @@ export class OverlayController {
     this.doc.activeColor = saved.activeColor;
     this.doc.activeStrokeWidth = saved.activeStrokeWidth;
     resequence(this.doc);
+    this.applyTextEditsFromDoc();
     this.toolbar.setActiveColor(saved.activeColor);
     this.toolbar.setActiveWidth(saved.activeStrokeWidth);
     this.refreshHistory();
@@ -444,6 +472,7 @@ export class OverlayController {
 
   /** Refresh history buttons, the panel, persistence, and the canvas. */
   private afterMutation(): void {
+    this.reconcileTextEdits();
     this.refreshHistory();
     this.panel.render(this.doc, this.selectedId);
     this.session.save(this.doc);
@@ -625,7 +654,118 @@ export class OverlayController {
     y: number;
   } {
     const g = annotation.geometry;
-    return pageToClient(g.kind === 'callout' ? g.anchor : g.origin);
+    const point =
+      g.kind === 'callout'
+        ? g.anchor
+        : g.kind === 'text'
+          ? g.origin
+          : { x: g.box.x, y: g.box.y };
+    return pageToClient(point);
+  }
+
+  // --- in-place text edits -----------------------------------------------
+
+  /**
+   * Begin editing a page element's text in place. The element turns editable;
+   * on commit the before/after text is attached to the annotation and it is
+   * added to the document. On cancel, or when the text is unchanged, the
+   * element is restored and nothing is added.
+   */
+  private beginTextEdit(
+    annotation: ChangeRequestAnnotation,
+    element: HTMLElement,
+  ): void {
+    if (annotation.geometry.kind !== 'textedit') return;
+    const geometry = annotation.geometry;
+    this.inspector.hide();
+    this.engine.setEnabled(false);
+    this.canvas.el.style.pointerEvents = 'none';
+    const originalHTML = element.innerHTML;
+    const oldText = normalizeText(element.textContent);
+    this.pendingEdit = { element, originalHTML };
+
+    const stopEditing = (): void => {
+      this.pendingEdit = null;
+      this.engine.setEnabled(true);
+      this.canvas.el.style.pointerEvents = 'auto';
+    };
+
+    this.toast.show(
+      'Editing text. Cmd/Ctrl+Enter or click away to save, Esc to discard.',
+    );
+    this.inlineEditor.open(element, {
+      onCommit: () => {
+        stopEditing();
+        const newText = normalizeText(element.textContent);
+        if (newText === oldText) {
+          element.innerHTML = originalHTML;
+          this.toast.show('Text unchanged. Nothing was saved.');
+          return;
+        }
+        geometry.oldText = oldText;
+        geometry.newText = newText;
+        geometry.box = pageRect(element);
+        this.textEdits.set(annotation.id, { element, originalHTML, newText });
+        this.addAnnotation(annotation);
+        this.toast.show(`Saved the text edit as change ${annotation.number}.`);
+      },
+      onCancel: () => {
+        stopEditing();
+        element.innerHTML = originalHTML;
+      },
+    });
+  }
+
+  /**
+   * Reconcile the live page DOM to the text-edit annotations: an edit still in
+   * the document shows its new text; one that was undone, deleted, or cleared
+   * is restored to the element's original markup. Run after every mutation.
+   */
+  private reconcileTextEdits(): void {
+    for (const [id, entry] of this.textEdits) {
+      if (!entry.element.isConnected) continue;
+      if (this.doc.annotations.some((a) => a.id === id)) {
+        if (entry.element.textContent !== entry.newText) {
+          entry.element.textContent = entry.newText;
+        }
+      } else {
+        entry.element.innerHTML = entry.originalHTML;
+      }
+    }
+  }
+
+  /** Re-apply saved text edits to the page when a session is resumed. */
+  private applyTextEditsFromDoc(): void {
+    for (const annotation of this.doc.annotations) {
+      if (annotation.annotationClass !== 'change-request') continue;
+      const geometry = annotation.geometry;
+      if (geometry.kind !== 'textedit') continue;
+      if (this.textEdits.has(annotation.id)) continue;
+      const element = annotation.element
+        ? resolveElement(annotation.element.selector)
+        : null;
+      if (!element) continue;
+      this.textEdits.set(annotation.id, {
+        element,
+        originalHTML: element.innerHTML,
+        newText: geometry.newText,
+      });
+      element.textContent = geometry.newText;
+    }
+  }
+
+  /** Restore every edited page element to its original markup. */
+  private revertAllTextEdits(): void {
+    if (this.pendingEdit && this.pendingEdit.element.isConnected) {
+      this.pendingEdit.element.innerHTML = this.pendingEdit.originalHTML;
+    }
+    this.pendingEdit = null;
+    for (const entry of this.textEdits.values()) {
+      if (entry.element.isConnected) {
+        entry.element.innerHTML = entry.originalHTML;
+      }
+    }
+    this.textEdits.clear();
   }
 
   // --- export -------------------------------------------------------------
@@ -839,9 +979,35 @@ export class OverlayController {
   }
 }
 
-/** Whether a tool anchors its annotations to a page element (callout, text). */
+/** Whether a tool anchors its annotations to a page element. */
 function isAnchoredTool(tool: EditorTool): boolean {
-  return tool === 'callout' || tool === 'text';
+  return tool === 'callout' || tool === 'text' || tool === 'textedit';
+}
+
+/** Collapse runs of whitespace and trim, for a clean, greppable text value. */
+function normalizeText(text: string | null): string {
+  return (text ?? '').replace(/\s+/g, ' ').trim();
+}
+
+/** The page-coordinate bounding box of an element. */
+function pageRect(element: HTMLElement): Rect {
+  const r = element.getBoundingClientRect();
+  return {
+    x: r.left + window.scrollX,
+    y: r.top + window.scrollY,
+    w: r.width,
+    h: r.height,
+  };
+}
+
+/** Resolve a stored selector to a single page element, or null. */
+function resolveElement(selector: string): HTMLElement | null {
+  try {
+    const el = document.querySelector(selector);
+    return el instanceof HTMLElement ? el : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Resolve after two animation frames, so a style change has painted. */

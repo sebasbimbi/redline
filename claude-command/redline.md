@@ -46,9 +46,16 @@ Work through the exports one at a time. For each one:
      - the `Current text`: grep for it. On a component framework it may be a
        prop or a string literal.
      - the `Nearby landmark`: it narrows down which section renders it
-  2. Make the change. Keep it minimal and scoped. Do not refactor surrounding
+  2. If the item is a text replacement (`Change type: text replacement`),
+     search the source for the exact `Old text` string and replace it with
+     the `New text`. Exact string search beats a selector here. Fall back to
+     the selector only when the `Old text` is not found verbatim, for example
+     when it is interpolated, split across lines, or a localization key. When
+     the item says `Contains inline markup: yes`, keep the element's child
+     markup and change only the text.
+  3. Make the change. Keep it minimal and scoped. Do not refactor surrounding
      code or restyle unrelated elements.
-  3. If you cannot confidently identify the element, do not guess. Mark the
+  4. If you cannot confidently identify the element, do not guess. Mark the
      item "Needs clarification" and say what you searched for.
 
 ## 3. Mark each export done

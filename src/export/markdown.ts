@@ -4,6 +4,7 @@ import type { RedlineDocument } from '../model/document';
 import type {
   ChangeRequestAnnotation,
   ElementMetadata,
+  TextEditShape,
 } from '../model/annotation';
 
 /** Render the document as a change-request markdown file. */
@@ -53,8 +54,23 @@ export function buildMarkdown(
   out.push(
     '   Element context, current text, id, and data attributes to locate it.',
   );
-  out.push('3. Make the change. Keep it minimal and scoped to the request.');
-  out.push('4. Report per item: Done / Skipped (reason) / Needs clarification.');
+  out.push(
+    '3. For a text replacement (Change type: text replacement), search the',
+  );
+  out.push(
+    '   source for the exact Old text string and replace it with the New',
+  );
+  out.push(
+    '   text. That is more reliable than the selector. Fall back to the',
+  );
+  out.push(
+    '   selector only if the Old text is not found verbatim, for instance',
+  );
+  out.push(
+    '   when it is interpolated, split across lines, or a translation key.',
+  );
+  out.push('4. Make the change. Keep it minimal and scoped to the request.');
+  out.push('5. Report per item: Done / Skipped (reason) / Needs clarification.');
   out.push('');
   out.push('## Changes');
   out.push('');
@@ -64,6 +80,12 @@ export function buildMarkdown(
     out.push('');
   }
   for (const change of changes) {
+    if (change.geometry.kind === 'textedit') {
+      appendTextEdit(out, change.geometry, change.number);
+      appendElement(out, change.element);
+      out.push('');
+      continue;
+    }
     const label = change.label.trim() || '(no label)';
     out.push(`### ${change.number}. ${label}`);
     out.push('');
@@ -114,6 +136,26 @@ function appendElement(out: string[], el: ElementMetadata | null): void {
   const vp = el.viewportPercent;
   out.push(`- Location: ${vp.top}% from top, ${vp.left}% from left of viewport`);
   if (el.nearbyLandmark) out.push(`- Nearby landmark: ${el.nearbyLandmark}`);
+}
+
+/** Append a text-replacement change: the verbatim before and after text. */
+function appendTextEdit(
+  out: string[],
+  geometry: TextEditShape,
+  number: number,
+): void {
+  out.push(`### ${number}. Text edit`);
+  out.push('');
+  out.push('- Change type: text replacement');
+  out.push(`- Old text: "${geometry.oldText}"`);
+  out.push(`- New text: "${geometry.newText}"`);
+  if (geometry.hasInlineMarkup) {
+    out.push(
+      '- Contains inline markup: yes. The element holds child elements ' +
+        '(a link, bold text, an icon). Replace the text and keep that ' +
+        'markup intact.',
+    );
+  }
 }
 
 function describeElement(el: ElementMetadata): string {

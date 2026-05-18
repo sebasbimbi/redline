@@ -98,7 +98,16 @@ export class SidePanel {
     const label = document.createElement('span');
     label.className = 'redline-panel-label';
 
-    if (isChangeRequest(annotation)) {
+    if (isChangeRequest(annotation) && annotation.geometry.kind === 'textedit') {
+      const badge = document.createElement('span');
+      badge.className = 'redline-panel-num';
+      badge.style.background = color;
+      badge.textContent = String(annotation.number);
+      const { oldText, newText } = annotation.geometry;
+      label.textContent = `${oldText || '(empty)'} → ${newText || '(empty)'}`;
+      label.classList.add('is-muted');
+      row.append(badge, label);
+    } else if (isChangeRequest(annotation)) {
       const badge = document.createElement('span');
       badge.className = 'redline-panel-num';
       badge.style.background = color;

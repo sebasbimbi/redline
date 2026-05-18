@@ -34,6 +34,11 @@ export interface ToolContext {
    * editor. It is committed only if the user saves a non-empty label.
    */
   placeChangeRequest(annotation: ChangeRequestAnnotation): void;
+  /**
+   * Begin an in-place text edit: make the picked element editable on the page.
+   * The annotation is committed only if the user actually changes the text.
+   */
+  beginTextEdit(annotation: ChangeRequestAnnotation, element: HTMLElement): void;
   /** Record a finished move (drag) on the undo stack. */
   recordMove(id: string, before: Geometry, after: Geometry): void;
   /** Delete an annotation via the undo stack. */

@@ -77,6 +77,30 @@ function makeRectangle(): VisualEmphasisAnnotation {
   };
 }
 
+function makeTextEdit(
+  number: number,
+  oldText: string,
+  newText: string,
+  opts: { hasInlineMarkup?: boolean; element?: ElementMetadata | null } = {},
+): ChangeRequestAnnotation {
+  return {
+    id: `te-${number}`,
+    createdAt: '2026-05-17T10:07:00.000Z',
+    annotationClass: 'change-request',
+    geometry: {
+      kind: 'textedit',
+      box: { x: 0, y: 0, w: 200, h: 40 },
+      color: '#0091ff',
+      oldText,
+      newText,
+      hasInlineMarkup: opts.hasInlineMarkup ?? false,
+    },
+    number,
+    label: '',
+    element: opts.element === undefined ? makeMetadata() : opts.element,
+  };
+}
+
 describe('buildMarkdown', () => {
   it('renders the header, metadata table, and how-to-apply section', () => {
     const md = buildMarkdown(makeDoc(), 'shot.png');
@@ -190,5 +214,55 @@ describe('buildMarkdown', () => {
       'shot.png',
     );
     expect(md).toContain('*1 change(s) · Redline · schema v1*');
+  });
+
+  it('renders a text edit as a text-replacement change', () => {
+    const md = buildMarkdown(
+      makeDoc([makeTextEdit(1, 'Welcome to our site', 'Welcome back')]),
+      'shot.png',
+    );
+    expect(md).toContain('| Changes | 1 |');
+    expect(md).toContain('### 1. Text edit');
+    expect(md).toContain('- Change type: text replacement');
+    expect(md).toContain('- Old text: "Welcome to our site"');
+    expect(md).toContain('- New text: "Welcome back"');
+    expect(md).toContain('- Selector: `main > h1`');
+  });
+
+  it('flags a text edit that contains inline markup', () => {
+    const md = buildMarkdown(
+      makeDoc([
+        makeTextEdit(1, 'Old copy', 'New copy', { hasInlineMarkup: true }),
+      ]),
+      'shot.png',
+    );
+    expect(md).toContain('- Contains inline markup: yes');
+  });
+
+  it('omits the inline-markup line when the element has none', () => {
+    const md = buildMarkdown(
+      makeDoc([makeTextEdit(1, 'Old copy', 'New copy')]),
+      'shot.png',
+    );
+    expect(md).not.toContain('Contains inline markup');
+  });
+
+  it('numbers text edits and callouts in one shared sequence', () => {
+    const md = buildMarkdown(
+      makeDoc([
+        makeCallout(1, 'Make it bold', makeMetadata()),
+        makeTextEdit(2, 'A', 'B'),
+      ]),
+      'shot.png',
+    );
+    expect(md).toContain('### 1. Make it bold');
+    expect(md).toContain('### 2. Text edit');
+    expect(md).toContain('| Changes | 2 |');
+  });
+
+  it('tells the agent to search the exact old text first', () => {
+    const md = buildMarkdown(makeDoc(), 'shot.png');
+    expect(md).toContain('text replacement');
+    expect(md).toContain('exact Old text string');
   });
 });

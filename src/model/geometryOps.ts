@@ -58,6 +58,10 @@ export function translateGeometry(
       geometry.origin.x += dx;
       geometry.origin.y += dy;
       return;
+    case 'textedit':
+      geometry.box.x += dx;
+      geometry.box.y += dy;
+      return;
   }
 }
 
@@ -110,6 +114,8 @@ export function annotationBounds(annotation: Annotation): Rect {
         annotation.annotationClass === 'change-request' ? annotation.label : '';
       return textBounds(g.origin, g.fontSize, label);
     }
+    case 'textedit':
+      return { x: g.box.x, y: g.box.y, w: g.box.w, h: g.box.h };
   }
 }
 
@@ -157,6 +163,11 @@ export function hitTestAnnotation(annotation: Annotation, p: Point): boolean {
       return distance(p, g.anchor) <= CALLOUT_RADIUS;
     case 'text':
       return inRect(p, annotationBounds(annotation), 5);
+    case 'textedit':
+      return (
+        inRect(p, g.box, 5) ||
+        distance(p, { x: g.box.x, y: g.box.y }) <= CALLOUT_RADIUS
+      );
   }
 }
 
@@ -184,6 +195,7 @@ export function annotationColor(annotation: Annotation): string {
     case 'highlight':
     case 'callout':
     case 'text':
+    case 'textedit':
       return g.color;
   }
 }

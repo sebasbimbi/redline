@@ -54,6 +54,28 @@ function measureAnnotation(
   };
 }
 
+function textEditAnnotation(
+  id: string,
+  box: { x: number; y: number; w: number; h: number },
+): Annotation {
+  return {
+    id,
+    createdAt: '2026-05-18T00:00:00.000Z',
+    annotationClass: 'change-request',
+    geometry: {
+      kind: 'textedit',
+      box,
+      color: '#0091ff',
+      oldText: 'Old',
+      newText: 'New',
+      hasInlineMarkup: false,
+    },
+    number: 1,
+    label: '',
+    element: null,
+  };
+}
+
 describe('rectFromPoints', () => {
   it('builds a rectangle from two corner points', () => {
     expect(rectFromPoints({ x: 10, y: 10 }, { x: 30, y: 40 })).toEqual({
@@ -232,5 +254,40 @@ describe('measure geometry', () => {
     expect(
       annotationColor(measureAnnotation('m', { x: 0, y: 0 }, { x: 1, y: 1 })),
     ).toBe('#ff0000');
+  });
+});
+
+describe('textedit geometry', () => {
+  it('translates the box of a text edit', () => {
+    const g = {
+      kind: 'textedit' as const,
+      box: { x: 10, y: 20, w: 100, h: 30 },
+      color: '#0091ff',
+      oldText: 'a',
+      newText: 'b',
+      hasInlineMarkup: false,
+    };
+    translateGeometry(g, 5, 7);
+    expect(g.box).toEqual({ x: 15, y: 27, w: 100, h: 30 });
+  });
+
+  it('bounds a text edit to its element box', () => {
+    const bounds = annotationBounds(
+      textEditAnnotation('t', { x: 4, y: 6, w: 120, h: 24 }),
+    );
+    expect(bounds).toEqual({ x: 4, y: 6, w: 120, h: 24 });
+  });
+
+  it('hits inside the box and at the marker corner, misses far outside', () => {
+    const t = textEditAnnotation('t', { x: 100, y: 100, w: 80, h: 20 });
+    expect(hitTestAnnotation(t, { x: 140, y: 110 })).toBe(true);
+    expect(hitTestAnnotation(t, { x: 100, y: 100 })).toBe(true);
+    expect(hitTestAnnotation(t, { x: 400, y: 400 })).toBe(false);
+  });
+
+  it('reads the color of a text edit', () => {
+    expect(
+      annotationColor(textEditAnnotation('t', { x: 0, y: 0, w: 1, h: 1 })),
+    ).toBe('#0091ff');
   });
 });
