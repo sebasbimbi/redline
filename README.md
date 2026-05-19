@@ -114,7 +114,7 @@ pnpm icons      # regenerate the extension icons
 
 ## Status
 
-Version 1.3.0. Nine annotation tools (callout, text, edit text, rectangle,
+Version 1.3.1. Nine annotation tools (callout, text, edit text, rectangle,
 ellipse, arrow, freehand, highlight, measure), select and move, undo and redo,
 an annotation panel, per-page session persistence, popup settings, viewport
 and full-page capture, clipboard and folder-save export, multi-page batch
