@@ -31,6 +31,7 @@ function makeContext(doc: RedlineDocument): ToolContext {
     doc,
     inspectAt: () => {},
     pickedElement: () => null,
+    lastInspectPoint: () => null,
     render: () => {},
     setDraft: () => {},
     addAnnotation: () => {},
@@ -51,6 +52,7 @@ function makeTool(id: EditorTool) {
     onPointerMove: vi.fn(),
     onPointerUp: vi.fn(),
     onPointerCancel: vi.fn(),
+    onConfirm: vi.fn(),
   };
   const tool: Tool = { id, ...handlers };
   return { tool, handlers };
@@ -123,5 +125,18 @@ describe('DrawingEngine', () => {
     engine.detach();
     fire(canvas, 'pointerdown');
     expect(handlers.onPointerDown).not.toHaveBeenCalled();
+  });
+
+  it('routes confirm to the active tool', () => {
+    const { engine, handlers } = setup('callout');
+    engine.confirm();
+    expect(handlers.onConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not route confirm while disabled', () => {
+    const { engine, handlers } = setup('callout');
+    engine.setEnabled(false);
+    engine.confirm();
+    expect(handlers.onConfirm).not.toHaveBeenCalled();
   });
 });

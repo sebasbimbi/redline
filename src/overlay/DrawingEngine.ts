@@ -69,6 +69,12 @@ export class DrawingEngine {
     this.active = this.registry.get(id);
   }
 
+  /** Commit the active tool's inspected element, as the Enter key does. */
+  confirm(): void {
+    if (!this.enabled) return;
+    this.active.onConfirm?.(this.ctx);
+  }
+
   /** Suspend or resume pointer handling (e.g. while the label editor is open). */
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;

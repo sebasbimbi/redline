@@ -3,6 +3,11 @@
 import { loadDirectoryHandle, saveDirectoryHandle } from '../platform/idb';
 import redlineCommandSource from '../../claude-command/redline.md?raw';
 
+/** The raw text of the bundled /redline command, for the download fallback. */
+export function redlineCommandText(): string {
+  return redlineCommandSource;
+}
+
 export type DirectoryResult =
   | { status: 'ok'; dir: FileSystemDirectoryHandle }
   | { status: 'cancelled' }

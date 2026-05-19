@@ -124,4 +124,51 @@ describe('ElementInspector', () => {
     expect(inspector.hasTarget()).toBe(false);
     expect(inspector.current()).toBeNull();
   });
+
+  it('keeps the walked element when the cursor only jitters', () => {
+    const { inspector, pickAt, title, hero } = setup();
+    pickAt.mockReturnValue(title);
+    inspector.setEnabled(true);
+    inspector.moveTo(100, 100);
+    inspector.traverse(true);
+    expect(inspector.current()).toBe(hero);
+
+    // a small tremor, as when a hand presses the mouse button, must not reset
+    inspector.moveTo(102, 101);
+    expect(inspector.current()).toBe(hero);
+  });
+
+  it('ignores the page shifting under a still cursor after a walk', () => {
+    const { inspector, pickAt, title, hero, other } = setup();
+    pickAt.mockReturnValue(title);
+    inspector.setEnabled(true);
+    inspector.moveTo(100, 100);
+    inspector.traverse(true);
+
+    // an animated element slides a different node under the same point
+    pickAt.mockReturnValue(other);
+    inspector.moveTo(100, 100);
+    expect(inspector.current()).toBe(hero);
+  });
+
+  it('releases the walk on a deliberate cursor move', () => {
+    const { inspector, pickAt, title, hero, other } = setup();
+    pickAt.mockReturnValue(title);
+    inspector.setEnabled(true);
+    inspector.moveTo(100, 100);
+    inspector.traverse(true);
+    expect(inspector.current()).toBe(hero);
+
+    pickAt.mockReturnValue(other);
+    inspector.moveTo(300, 300);
+    expect(inspector.current()).toBe(other);
+  });
+
+  it('reports the last cursor position for a keyboard commit', () => {
+    const { inspector, pickAt, title } = setup();
+    pickAt.mockReturnValue(title);
+    inspector.setEnabled(true);
+    inspector.moveTo(42, 84);
+    expect(inspector.lastClient()).toEqual({ x: 42, y: 84 });
+  });
 });

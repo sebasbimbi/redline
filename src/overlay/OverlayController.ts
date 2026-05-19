@@ -53,8 +53,10 @@ import { captureFullPage } from '../capture/fullPage';
 import { buildMarkdown } from '../export/markdown';
 import { exportSlug } from '../export/filename';
 import { copyToClipboard, dataUrlToBlob } from '../export/clipboard';
+import { downloadBlob } from '../export/download';
 import {
   installRedlineCommand,
+  redlineCommandText,
   resolveExportDirectory,
   writeExportFiles,
 } from '../export/fileSystem';
@@ -169,6 +171,8 @@ export class OverlayController {
       doc: this.doc,
       inspectAt: (x, y) => this.inspector.moveTo(x, y),
       pickedElement: () => this.inspector.current(),
+      lastInspectPoint: () =>
+        this.inspector.hasTarget() ? this.inspector.lastClient() : null,
       render: () => this.canvas.requestRender(),
       setDraft: (annotation) => this.setDraft(annotation),
       addAnnotation: (annotation) => this.addAnnotation(annotation),
@@ -345,6 +349,18 @@ export class OverlayController {
         e.preventDefault();
         e.stopPropagation();
         this.inspector.traverse(e.key === 'ArrowUp');
+      }
+      return;
+    }
+
+    // Enter commits the inspected element directly, so a keyboard tree-walk is
+    // not lost to the hit-test a click re-runs (which an animated page can
+    // resolve to a different element).
+    if (e.key === 'Enter') {
+      if (this.inspector.isEnabled() && this.inspector.hasTarget()) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.engine.confirm();
       }
       return;
     }
@@ -829,13 +845,6 @@ export class OverlayController {
       });
       return;
     }
-    if (!supportsFileSystemAccess()) {
-      this.toast.show(
-        'Saving to a folder needs a secure (https) page. Use Copy here instead.',
-        { tone: 'error' },
-      );
-      return;
-    }
     if (!this.hasAnnotations()) {
       this.toast.show('Add at least one annotation before exporting.', {
         tone: 'error',
@@ -845,6 +854,13 @@ export class OverlayController {
     this.busy = true;
     this.toolbar.setBusy(true);
     try {
+      // Folder-save needs the File System Access API, which browsers gate to
+      // secure (https) pages. On a plain http page, fall back to a download so
+      // the export is never a dead end.
+      if (!supportsFileSystemAccess()) {
+        await this.downloadExport();
+        return;
+      }
       // Resolve the folder first, while the click's user activation is fresh.
       const directory = await resolveExportDirectory(forcePicker);
       if (directory.status === 'cancelled') return;
@@ -876,14 +892,43 @@ export class OverlayController {
     }
   }
 
+  /**
+   * Export by downloading the screenshot and changelog to the browser's
+   * downloads folder. The fallback for pages where folder-save is unavailable
+   * (a plain http page): a download needs no secure context, so it always
+   * works. The two files land in Downloads for the user to move into a project.
+   */
+  private async downloadExport(): Promise<void> {
+    const artifacts = await this.capture();
+    if (!artifacts) return;
+    downloadBlob(this.shadowHost.root, artifacts.pngBlob, `${artifacts.slug}.png`);
+    downloadBlob(
+      this.shadowHost.root,
+      new Blob([artifacts.markdown], { type: 'text/markdown' }),
+      `${artifacts.slug}.md`,
+    );
+    this.toast.show(
+      'Folder save needs an https page. Redline downloaded the screenshot ' +
+        'and changelog to your Downloads folder instead. Move them into your ' +
+        'project, then run /redline in Claude Code.',
+    );
+  }
+
   /** Install the /redline slash command into a project the user picks. */
   private async runInstallCommand(): Promise<void> {
     if (this.busy) return;
+    // Writing into .claude/commands/ needs the File System Access API (secure
+    // pages only). On a plain http page, download the command file instead.
     if (!supportsFileSystemAccess()) {
+      downloadBlob(
+        this.shadowHost.root,
+        new Blob([redlineCommandText()], { type: 'text/markdown' }),
+        'redline.md',
+      );
       this.toast.show(
-        'Installing the command needs a secure (https) page. Copy ' +
-          'claude-command/redline.md into .claude/commands/ by hand instead.',
-        { tone: 'error' },
+        'Installing into a folder needs an https page. Redline downloaded ' +
+          'redline.md to your Downloads folder instead. Move it into your ' +
+          "project's .claude/commands/ folder.",
       );
       return;
     }

@@ -22,7 +22,21 @@ export class CalloutTool implements Tool {
   }
 
   onPointerDown(ev: PointerEvent, ctx: ToolContext): void {
-    ctx.inspectAt(ev.clientX, ev.clientY);
+    // The hover already tracked this element on pointer move. Re-running the
+    // hit-test would discard a keyboard tree-walk, and on an animated page can
+    // resolve to a different element; only fall back to it when the pointer
+    // arrived with no prior move, as on touch.
+    if (!ctx.pickedElement()) ctx.inspectAt(ev.clientX, ev.clientY);
+    this.commit(ev.clientX, ev.clientY, ctx);
+  }
+
+  onConfirm(ctx: ToolContext): void {
+    const point = ctx.lastInspectPoint();
+    if (point) this.commit(point.x, point.y, ctx);
+  }
+
+  /** Drop a numbered callout anchored to the inspector's current element. */
+  private commit(clientX: number, clientY: number, ctx: ToolContext): void {
     const target = ctx.pickedElement();
     const annotation: ChangeRequestAnnotation = {
       id: uid(),
@@ -30,7 +44,7 @@ export class CalloutTool implements Tool {
       annotationClass: 'change-request',
       geometry: {
         kind: 'callout',
-        anchor: clientToPage(ev.clientX, ev.clientY),
+        anchor: clientToPage(clientX, clientY),
         color: ctx.doc.activeColor,
       },
       number: changeRequestCount(ctx.doc) + 1,

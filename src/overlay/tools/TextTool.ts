@@ -18,7 +18,19 @@ export class TextTool implements Tool {
   }
 
   onPointerDown(ev: PointerEvent, ctx: ToolContext): void {
-    ctx.inspectAt(ev.clientX, ev.clientY);
+    // The hover already tracked this element; only re-run the hit-test when
+    // the pointer arrived with no prior move (touch). See CalloutTool.
+    if (!ctx.pickedElement()) ctx.inspectAt(ev.clientX, ev.clientY);
+    this.commit(ev.clientX, ev.clientY, ctx);
+  }
+
+  onConfirm(ctx: ToolContext): void {
+    const point = ctx.lastInspectPoint();
+    if (point) this.commit(point.x, point.y, ctx);
+  }
+
+  /** Place a text note anchored to the inspector's current element. */
+  private commit(clientX: number, clientY: number, ctx: ToolContext): void {
     const target = ctx.pickedElement();
     const annotation: ChangeRequestAnnotation = {
       id: uid(),
@@ -26,7 +38,7 @@ export class TextTool implements Tool {
       annotationClass: 'change-request',
       geometry: {
         kind: 'text',
-        origin: clientToPage(ev.clientX, ev.clientY),
+        origin: clientToPage(clientX, clientY),
         fontSize: TEXT_FONT_SIZE,
         color: ctx.doc.activeColor,
       },

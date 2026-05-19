@@ -13,16 +13,21 @@ export interface ToolContext {
   readonly doc: RedlineDocument;
   /**
    * Point the element inspector at viewport coordinates. The element-anchored
-   * tools call this on every pointer move (to highlight the target element)
-   * and again on pointer down (to lock the target in before reading it).
+   * tools call this on every pointer move to highlight the target element.
    */
   inspectAt(clientX: number, clientY: number): void;
   /**
    * The page element the inspector is locked onto, after any keyboard
-   * tree-traversal. The element-anchored tools read this on pointer down to
-   * anchor a new change request. Null when nothing is under the cursor.
+   * tree-traversal. The element-anchored tools read this to anchor a new
+   * change request. Null when nothing is under the cursor.
    */
   pickedElement(): Element | null;
+  /**
+   * The last cursor position the inspector tracked, in viewport coordinates,
+   * or null when it has no target. Used to place a change request committed
+   * by the Enter key rather than by a pointer click.
+   */
+  lastInspectPoint(): { x: number; y: number } | null;
   /** Repaint the annotation canvas. */
   render(): void;
   /** Set or clear the in-progress preview annotation (a drag, before commit). */
@@ -61,4 +66,11 @@ export interface Tool {
   onPointerUp?(ev: PointerEvent, ctx: ToolContext): void;
   /** Called when a drag is interrupted; the tool should discard any draft. */
   onPointerCancel?(ctx: ToolContext): void;
+  /**
+   * Commit the element the inspector is currently locked onto, with no pointer
+   * click. Wired to the Enter key for the element-anchored tools, so a
+   * keyboard tree-walk commits exactly as walked, with no hit-test re-run that
+   * an animated page could resolve to a different element.
+   */
+  onConfirm?(ctx: ToolContext): void;
 }

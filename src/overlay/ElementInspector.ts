@@ -4,6 +4,13 @@ import type { ElementPicker } from './ElementPicker';
 import type { ElementHighlighter } from '../ui/ElementHighlighter';
 
 /**
+ * A pointer move shorter than this many pixels does not break an arrow-key
+ * walk. It absorbs a hand tremor on click and a page animation sliding a
+ * different element under an otherwise still cursor.
+ */
+const ARROW_UNLOCK_PX = 6;
+
+/**
  * Tracks the page element under the cursor for the callout and text tools and
  * lets the user walk up and down the DOM tree with the arrow keys. This is the
  * fix for elements a click cannot land on: a container fully covered by its
@@ -17,6 +24,18 @@ export class ElementInspector {
   private base: Element | null = null;
   /** How many parent steps above `base` the selection has walked. */
   private depth = 0;
+  /**
+   * Set once the arrow keys retarget the selection. While locked, a pointer
+   * move within ARROW_UNLOCK_PX is ignored, so jitter or a moving page cannot
+   * silently undo the walk; a deliberate move releases it.
+   */
+  private arrowLocked = false;
+  /** Cursor position the lock was anchored at, in viewport coordinates. */
+  private lockX = 0;
+  private lockY = 0;
+  /** The last cursor position tracked, in viewport coordinates. */
+  private lastX = 0;
+  private lastY = 0;
 
   constructor(
     private readonly picker: ElementPicker,
@@ -39,14 +58,29 @@ export class ElementInspector {
     return this.base !== null;
   }
 
+  /** The last cursor position tracked, in viewport coordinates. */
+  lastClient(): { x: number; y: number } {
+    return { x: this.lastX, y: this.lastY };
+  }
+
   /**
    * Point the inspector at viewport coordinates. The traversal depth is kept
-   * while the cursor stays over the same base element (so a click does not
-   * undo a walk the user just made with the arrow keys) and reset the moment
-   * it moves onto a different element.
+   * while the cursor stays over the same base element and reset the moment it
+   * moves onto a different one. After an arrow-key walk the inspector is
+   * locked: a move within ARROW_UNLOCK_PX (a click tremor, or an animated
+   * page sliding a new element under a still cursor) is ignored entirely, so
+   * the walked element survives until the next deliberate move.
    */
   moveTo(clientX: number, clientY: number): void {
     if (!this.enabled) return;
+    if (this.arrowLocked) {
+      const drift =
+        Math.abs(clientX - this.lockX) + Math.abs(clientY - this.lockY);
+      if (drift <= ARROW_UNLOCK_PX) return;
+      this.arrowLocked = false;
+    }
+    this.lastX = clientX;
+    this.lastY = clientY;
     const base = this.picker.pickAt(clientX, clientY);
     if (base !== this.base) {
       this.base = base;
@@ -63,6 +97,10 @@ export class ElementInspector {
     } else if (this.depth > 0) {
       this.depth -= 1;
     }
+    // lock the walk so pointer jitter cannot reset it before it is committed
+    this.lockX = this.lastX;
+    this.lockY = this.lastY;
+    this.arrowLocked = true;
     this.refresh();
   }
 
@@ -88,6 +126,7 @@ export class ElementInspector {
   private clear(): void {
     this.base = null;
     this.depth = 0;
+    this.arrowLocked = false;
     this.highlighter.hide();
   }
 

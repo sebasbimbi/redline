@@ -21,7 +21,7 @@ export class ElementHighlighter {
     this.nameEl = div('redline-inspect-name');
     this.dimsEl = span('redline-inspect-dims');
     const hint = span('redline-inspect-hint');
-    hint.textContent = '↑ parent / ↓ child';
+    hint.textContent = '↑ parent / ↓ child / ↵ pick';
     const meta = div('redline-inspect-meta');
     meta.append(this.dimsEl, hint);
 

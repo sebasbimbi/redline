@@ -27,7 +27,18 @@ export class TextEditTool implements Tool {
   }
 
   onPointerDown(ev: PointerEvent, ctx: ToolContext): void {
-    ctx.inspectAt(ev.clientX, ev.clientY);
+    // The hover already tracked this element; only re-run the hit-test when
+    // the pointer arrived with no prior move (touch). See CalloutTool.
+    if (!ctx.pickedElement()) ctx.inspectAt(ev.clientX, ev.clientY);
+    this.commit(ctx);
+  }
+
+  onConfirm(ctx: ToolContext): void {
+    this.commit(ctx);
+  }
+
+  /** Begin an in-place edit of the inspector's current text element. */
+  private commit(ctx: ToolContext): void {
     const target = ctx.pickedElement();
     if (!(target instanceof HTMLElement)) return;
     if (target === document.body || target === document.documentElement) return;
