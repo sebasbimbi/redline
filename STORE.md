@@ -36,15 +36,18 @@ No backend, no telemetry, no account. Everything runs locally.
 ## Permission justifications
 
 - activeTab: inject the annotation overlay into the page the user activates
-  Redline on.
+  Redline on, and read the active tab's URL so the extension can refuse
+  pages that cannot be annotated.
 - scripting: inject that overlay programmatically, only when asked, so the
   extension is zero-cost on every other page.
-- tabs: read the active tab's URL to refuse pages that cannot be annotated,
-  and capture the visible tab as the screenshot.
+- tabs: capture the visible tab as the annotated screenshot.
 - storage: save the user's default color and stroke, and remember
   in-progress annotations per page so a session can be resumed.
-- host permissions (http, https): the overlay must be able to run on any
-  ordinary website the user chooses to annotate.
+
+Redline does not request broad host permissions. The combination of
+activeTab and the user gesture that activates the overlay is sufficient
+to run on any page the user picks, without the install-time warning that
+broad host permissions would add.
 
 ## Privacy
 

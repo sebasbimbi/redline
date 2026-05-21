@@ -50,7 +50,7 @@ Redline lets a user annotate a webpage and export those annotations as a structu
 
 ## Permission justifications
 
-activeTab: Redline injects its annotation overlay only into the tab the user explicitly activates it on.
+activeTab: Redline injects its annotation overlay only into the tab the user explicitly activates it on, and uses that grant to read the active tab's URL so it can refuse non-annotatable pages.
 
 scripting: Used to inject the annotation overlay into the active page on demand, when the user activates Redline.
 
@@ -58,7 +58,7 @@ tabs: Used to capture a screenshot of the visible tab, which becomes the annotat
 
 storage: Stores the user's default color, stroke width, toolbar position, and per-page annotations locally on the device.
 
-Host permissions (http and https): Redline must be able to run on any normal website the user chooses to annotate. It activates only on a deliberate user action and never runs on its own.
+(Redline does not request broad host permissions. activeTab plus the user gesture that triggers activation is sufficient.)
 
 ## Data use
 

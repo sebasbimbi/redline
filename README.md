@@ -92,11 +92,14 @@ Redline requests only what it needs, and all of it stays on your machine:
 
 - **activeTab** and **scripting** let Redline inject its annotation overlay
   into the page you activate it on. It injects nothing until you activate it.
-- **tabs** lets Redline capture the visible tab as the screenshot.
+  Because Redline only runs in response to a user gesture (the keyboard
+  shortcut or the toolbar icon), it does not ask for broad host permissions,
+  so the install dialog does not warn that it can read or change every site
+  you visit.
+- **tabs** lets Redline capture the visible tab as the screenshot, and check
+  whether the current page is one it can run on.
 - **storage** keeps your default color, stroke width, toolbar position, and
   per-page annotations.
-- The `http` and `https` host permissions let you activate Redline on any
-  normal site.
 
 There is no server and no telemetry. Nothing you annotate or export leaves
 your computer.
@@ -114,7 +117,7 @@ pnpm icons      # regenerate the extension icons
 
 ## Status
 
-Version 1.3.1. Nine annotation tools (callout, text, edit text, rectangle,
+Version 1.3.2. Nine annotation tools (callout, text, edit text, rectangle,
 ellipse, arrow, freehand, highlight, measure), select and move, undo and redo,
 an annotation panel, per-page session persistence, popup settings, viewport
 and full-page capture, clipboard and folder-save export, multi-page batch
