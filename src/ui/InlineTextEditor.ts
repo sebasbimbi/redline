@@ -5,12 +5,22 @@ export interface InlineTextEditorOptions {
   onCommit: () => void;
   /** The user abandoned the edit (Escape). */
   onCancel: () => void;
+  /**
+   * A node that bounds the editor's surrounding UI (e.g., a toolbar's shadow
+   * host). Pointer presses whose composed path includes this node do NOT
+   * auto-commit the edit, so the caller can react to a toolbar click without
+   * the editor silently committing first. The edit still commits on
+   * Cmd/Ctrl+Enter, cancels on Escape, and commits on a press anywhere else
+   * outside the edited element.
+   */
+  ownUiRoot?: Node;
 }
 
 /**
  * Makes one page element `contenteditable` so the user can rewrite its text
  * directly on the page. Plain text only. Commits on Cmd/Ctrl+Enter or a press
- * away from the element; cancels on Escape.
+ * away from the element (and outside any `ownUiRoot` the caller supplies);
+ * cancels on Escape.
  *
  * This class owns only the editing mechanics. It does not read, normalize, or
  * restore the element's content. The caller snapshots the element before
@@ -100,6 +110,8 @@ export class InlineTextEditor {
     if (!el) return;
     const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
     if (path.includes(el)) return; // a press inside the edited element
+    const ownUi = this.opts?.ownUiRoot;
+    if (ownUi && path.includes(ownUi)) return; // a press inside the editor's own UI
     this.finish(true); // a press anywhere else commits the edit
   };
 }

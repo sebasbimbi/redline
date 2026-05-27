@@ -101,6 +101,33 @@ describe('InlineTextEditor', () => {
     editor.close();
   });
 
+  it('ignores a pointer press inside the ownUiRoot', () => {
+    const editor = new InlineTextEditor();
+    const el = makeElement();
+    const ownUiRoot = document.createElement('div');
+    const child = document.createElement('button');
+    ownUiRoot.appendChild(child);
+    document.body.appendChild(ownUiRoot);
+    const onCommit = vi.fn();
+    editor.open(el, { onCommit, onCancel: vi.fn(), ownUiRoot });
+    child.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(onCommit).not.toHaveBeenCalled();
+    editor.close();
+  });
+
+  it('still commits on a press outside both the element and ownUiRoot', () => {
+    const editor = new InlineTextEditor();
+    const el = makeElement();
+    const ownUiRoot = document.createElement('div');
+    document.body.appendChild(ownUiRoot);
+    const stranger = document.createElement('p');
+    document.body.appendChild(stranger);
+    const onCommit = vi.fn();
+    editor.open(el, { onCommit, onCancel: vi.fn(), ownUiRoot });
+    stranger.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(onCommit).toHaveBeenCalledOnce();
+  });
+
   it('fires its callback only once even if events repeat', () => {
     const editor = new InlineTextEditor();
     const el = makeElement();

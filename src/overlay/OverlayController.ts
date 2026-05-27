@@ -710,6 +710,11 @@ export class OverlayController {
       'Editing text. Cmd/Ctrl+Enter or click away to save, Esc to discard.',
     );
     this.inlineEditor.open(element, {
+      // toolbar clicks (Save, Copy, tool switches) must not silently
+      // auto-commit; runSave/runCopy guard on `inlineEditor.isOpen` so the
+      // user gets a clear "finish the edit first" message instead of a save
+      // that drops the unfinished edit on the floor.
+      ownUiRoot: this.shadowHost.host,
       onCommit: () => {
         stopEditing();
         const newText = normalizeText(element.textContent);
@@ -799,6 +804,13 @@ export class OverlayController {
       });
       return;
     }
+    if (this.inlineEditor.isOpen) {
+      this.toast.show(
+        'Finish the text edit first: Cmd/Ctrl+Enter to keep it, Esc to discard.',
+        { tone: 'error' },
+      );
+      return;
+    }
     if (!this.hasAnnotations()) {
       this.toast.show('Add at least one annotation before exporting.', {
         tone: 'error',
@@ -843,6 +855,13 @@ export class OverlayController {
       this.toast.show('Finish the current label first, then export.', {
         tone: 'error',
       });
+      return;
+    }
+    if (this.inlineEditor.isOpen) {
+      this.toast.show(
+        'Finish the text edit first: Cmd/Ctrl+Enter to keep it, Esc to discard.',
+        { tone: 'error' },
+      );
       return;
     }
     if (!this.hasAnnotations()) {
